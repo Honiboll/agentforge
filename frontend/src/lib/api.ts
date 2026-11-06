@@ -18,10 +18,16 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 
 // --- Projects ---
 
-export function createProject(user_request: string, provider?: string, model?: string) {
+export function createProject(
+  user_request: string,
+  provider?: string,
+  model?: string,
+  api_key?: string,
+  base_url?: string
+) {
   return request<{ id: string }>("/api/projects/", {
     method: "POST",
-    body: JSON.stringify({ user_request, provider, model }),
+    body: JSON.stringify({ user_request, provider, model, api_key, base_url }),
   });
 }
 
@@ -60,10 +66,10 @@ export function testProvider(provider: string, model?: string) {
   });
 }
 
-export function saveApiKey(provider: string, api_key: string) {
+export function saveApiKey(provider: string, api_key: string, base_url?: string) {
   return request<{ success: boolean; message?: string; error?: string }>("/api/providers/key", {
     method: "POST",
-    body: JSON.stringify({ provider, api_key }),
+    body: JSON.stringify({ provider, api_key, base_url }),
   });
 }
 

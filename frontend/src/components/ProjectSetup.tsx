@@ -6,7 +6,13 @@ import { listProviders, saveApiKey, detectAndSaveApiKey } from "@/lib/api";
 import type { Provider, ModelOption } from "@/lib/types";
 
 interface Props {
-  onSubmit: (request: string, provider: string, model: string) => void;
+  onSubmit: (
+    request: string,
+    provider: string,
+    model: string,
+    apiKey?: string,
+    baseUrl?: string
+  ) => void;
   loading: boolean;
 }
 
@@ -15,6 +21,7 @@ const PROVIDER_ICONS: Record<string, string> = {
   gemini: "💎",
   openai: "🟢",
   anthropic: "🟠",
+  custom: "🛠️",
 };
 
 export function ProjectSetup({ onSubmit, loading }: Props) {
@@ -24,6 +31,7 @@ export function ProjectSetup({ onSubmit, loading }: Props) {
   const [selectedModel, setSelectedModel] = useState<string>("");
   const [customModel, setCustomModel] = useState<string>("");
   const [useCustomModel, setUseCustomModel] = useState<boolean>(false);
+  const [customBaseUrl, setCustomBaseUrl] = useState<string>("https://api.openai.com/v1");
   const [loadingProviders, setLoadingProviders] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -121,12 +129,33 @@ export function ProjectSetup({ onSubmit, loading }: Props) {
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (request.trim()) {
-      const finalModel = useCustomModel && customModel.trim() ? customModel.trim() : selectedModel;
-      onSubmit(request.trim(), selectedProvider, finalModel);
+    if (!request.trim()) return;
+
+    // Auto-save key if user typed it into either input
+    const keyToSave = inlineKey.trim() || smartKey.trim();
+    if (keyToSave) {
+      try {
+        setSavingKey(true);
+        const res = await saveApiKey(selectedProvider, keyToSave, selectedProvider === "custom" ? customBaseUrl.trim() : undefined);
+        if (res.success) {
+          setInlineKey("");
+          setSmartKey("");
+        }
+      } catch (err) {
+        console.error("Auto-saving key failed:", err);
+      } finally {
+        setSavingKey(false);
+      }
     }
+
+    const finalModel =
+      useCustomModel && customModel.trim()
+        ? customModel.trim()
+        : selectedModel || currentProvider?.default_model || "";
+    const finalBaseUrl = selectedProvider === "custom" ? customBaseUrl.trim() : "";
+    onSubmit(request.trim(), selectedProvider, finalModel, keyToSave, finalBaseUrl);
   };
 
   return (
@@ -294,13 +323,13 @@ export function ProjectSetup({ onSubmit, loading }: Props) {
           {useCustomModel ? (
             <div className="space-y-1.5 pt-1">
               <label className="block text-[11px] text-[var(--text-muted)]">
-                Enter any newly released model identifier (e.g. <code>gemini-2.5-flash</code>, <code>o3-mini</code>, <code>deepseek-v3</code>):
+                Enter exact model name (e.g. <code>gemini-2.0-flash</code>, <code>gpt-4o</code>, <code>deepseek-chat</code>, <code>claude-3-5-sonnet-20241022</code>):
               </label>
               <input
                 type="text"
                 value={customModel}
                 onChange={(e) => setCustomModel(e.target.value)}
-                placeholder="e.g. gemini-2.0-flash or gpt-4o-mini"
+                placeholder="e.g. gemini-2.0-flash, gpt-4o, deepseek-chat..."
                 className="w-full rounded-lg border border-[var(--border)] bg-black/40 px-3 py-2 text-xs text-white placeholder-gray-600 focus:border-brand-500 focus:outline-none"
               />
             </div>
@@ -329,6 +358,21 @@ export function ProjectSetup({ onSubmit, loading }: Props) {
                   </button>
                 );
               })}
+            </div>
+          )}
+
+          {currentProvider.name === "custom" && (
+            <div className="mt-3 rounded-lg border border-[var(--border)] bg-black/30 p-3 space-y-1.5">
+              <label className="block text-[11px] text-[var(--text-muted)] font-medium">
+                OpenAI-Compatible Base URL (e.g. <code>https://api.deepseek.com</code>, <code>https://openrouter.ai/api/v1</code>, <code>https://api.groq.com/openai/v1</code>):
+              </label>
+              <input
+                type="text"
+                value={customBaseUrl}
+                onChange={(e) => setCustomBaseUrl(e.target.value)}
+                placeholder="https://api.openai.com/v1"
+                className="w-full rounded-lg border border-[var(--border)] bg-black/40 px-3 py-1.5 text-xs text-white placeholder-gray-600 focus:border-brand-500 focus:outline-none"
+              />
             </div>
           )}
 

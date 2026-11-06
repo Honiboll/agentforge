@@ -12,7 +12,10 @@ class AnthropicProvider(BaseLLMProvider):
 
     def __init__(self, api_key: str, model: str = "claude-sonnet-4-20250514") -> None:
         self.api_key = api_key.strip() if api_key else ""
-        self.model = model
+        m = (model or "claude-sonnet-4-20250514").strip().strip('"').strip("'")
+        if m.startswith("anthropic/"):
+            m = m[len("anthropic/"):]
+        self.model = m or "claude-sonnet-4-20250514"
 
     async def generate(
         self,

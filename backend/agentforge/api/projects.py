@@ -27,10 +27,35 @@ router = APIRouter(prefix="/api/projects", tags=["projects"])
 _running: dict[str, asyncio.Task[Any]] = {}
 
 
+def sanitize_model_name(provider: str, model_name: str | None) -> str | None:
+    """Clean up and normalize model names across providers."""
+    if not model_name:
+        return None
+    m = model_name.strip().strip('"').strip("'")
+    p = provider.lower().strip()
+    if p == "gemini":
+        if m.startswith("models/"):
+            m = m[len("models/"):]
+        if m.startswith("google/"):
+            m = m[len("google/"):]
+    elif p in ("openai", "custom", "openai-compatible"):
+        if m.startswith("openai/"):
+            m = m[len("openai/"):]
+    elif p == "anthropic":
+        if m.startswith("anthropic/"):
+            m = m[len("anthropic/"):]
+    elif p == "ollama":
+        if m.startswith("ollama/"):
+            m = m[len("ollama/"):]
+    return m or None
+
+
 class ProjectCreate(BaseModel):
     user_request: str
     provider: str = ""
     model: str = ""
+    api_key: str = ""
+    base_url: str = ""
 
 
 class ProjectOut(BaseModel):
@@ -52,7 +77,29 @@ async def create_project(
 ) -> dict[str, Any]:
     project_id = uuid.uuid4().hex
     provider_name = body.provider or settings.default_llm_provider
-    model_name = body.model.strip() if body.model else None
+    model_name = sanitize_model_name(provider_name, body.model)
+
+    # Auto-save API key if provided in request
+    if body.api_key and body.api_key.strip():
+        key_val = body.api_key.strip()
+        p_key = provider_name.lower()
+        from agentforge.config import save_key_to_env
+        if p_key == "gemini":
+            settings.gemini_api_key = key_val
+            save_key_to_env("GEMINI_API_KEY", key_val)
+        elif p_key == "openai":
+            settings.openai_api_key = key_val
+            save_key_to_env("OPENAI_API_KEY", key_val)
+        elif p_key == "anthropic":
+            settings.anthropic_api_key = key_val
+            save_key_to_env("ANTHROPIC_API_KEY", key_val)
+        elif p_key in ("custom", "openai-compatible"):
+            settings.custom_api_key = key_val
+            save_key_to_env("CUSTOM_API_KEY", key_val)
+            if body.base_url and body.base_url.strip():
+                settings.custom_base_url = body.base_url.strip()
+                save_key_to_env("CUSTOM_BASE_URL", body.base_url.strip())
+
     project = ProjectModel(
         id=project_id,
         user_request=body.user_request,
@@ -130,7 +177,8 @@ async def start_project(
 
     # Validate provider upfront
     try:
-        provider = create_provider(project.provider_name, settings, model=project.model_name)
+        clean_model = sanitize_model_name(project.provider_name, project.model_name)
+        provider = create_provider(project.provider_name, settings, model=clean_model)
     except Exception as exc:
         err_msg = str(exc)
         project.status = "error"

@@ -345,7 +345,7 @@ Never lose track of your work:
 | **OpenAI** | — | ✅ | ✅ Ready |
 | **Google Gemini** | — | ✅ | ✅ Ready |
 | **Anthropic** | — | ✅ | ✅ Ready |
-| **Custom** | ✅ | ✅ | 🔧 Extensible |
+| **Custom** | ✅ | ✅ | ✅ Ready (DeepSeek, Groq, OpenRouter, vLLM) |
 
 ---
 

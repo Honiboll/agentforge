@@ -12,7 +12,10 @@ class OllamaProvider(BaseLLMProvider):
 
     def __init__(self, base_url: str = "http://localhost:11434", model: str = "llama3.2") -> None:
         self.base_url = base_url.rstrip("/")
-        self.model = model
+        m = (model or "llama3.2").strip().strip('"').strip("'")
+        if m.startswith("ollama/"):
+            m = m[len("ollama/"):]
+        self.model = m or "llama3.2"
 
     async def generate(
         self,

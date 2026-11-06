@@ -53,12 +53,16 @@ export default function SettingsPage() {
     loadProviders(false);
   }, []);
 
+  const [customUrls, setCustomUrls] = useState<Record<string, string>>({
+    custom: "https://api.openai.com/v1",
+  });
+
   const handleSaveKey = async (name: string) => {
     const val = keys[name]?.trim();
     if (!val) return;
     setSavingKey(name);
     try {
-      const res = await saveApiKey(name, val);
+      const res = await saveApiKey(name, val, name === "custom" ? customUrls[name] : undefined);
       if (res.success) {
         setKeyNotifs((prev) => ({ ...prev, [name]: res.message || "Key saved successfully!" }));
         setKeys((prev) => ({ ...prev, [name]: "" }));
@@ -214,6 +218,20 @@ export default function SettingsPage() {
             {/* Key Input Section */}
             {p.requires_key && (
               <div className="mt-3 pt-3 border-t border-[var(--border)] space-y-2">
+                {p.name === "custom" && (
+                  <div className="space-y-1">
+                    <span className="text-[11px] font-medium text-[var(--text-muted)]">
+                      OpenAI-Compatible Base URL:
+                    </span>
+                    <input
+                      type="text"
+                      placeholder="https://api.openai.com/v1"
+                      value={customUrls[p.name] || "https://api.openai.com/v1"}
+                      onChange={(e) => setCustomUrls({ ...customUrls, [p.name]: e.target.value })}
+                      className="w-full rounded-lg border border-[var(--border)] bg-black/40 px-3 py-1.5 text-xs text-white placeholder-gray-600 focus:border-brand-500 focus:outline-none"
+                    />
+                  </div>
+                )}
                 <span className="text-[11px] font-medium text-[var(--text-muted)]">
                   {p.has_key ? "Update API Key:" : "Enter API Key:"}
                 </span>

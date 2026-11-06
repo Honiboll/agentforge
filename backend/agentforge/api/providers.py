@@ -58,6 +58,11 @@ DEFAULT_MODELS: dict[str, list[dict[str, str]]] = {
         {"id": "deepseek-r1", "name": "DeepSeek R1", "description": "Advanced reasoning local model"},
         {"id": "qwen2.5", "name": "Qwen 2.5", "description": "Multilingual and coding specialist"},
     ],
+    "custom": [
+        {"id": "deepseek-chat", "name": "DeepSeek Chat", "description": "DeepSeek V3 / R1 reasoning (OpenAI-compatible)"},
+        {"id": "llama-3.3-70b-versatile", "name": "Llama 3.3 70B", "description": "Groq / OpenRouter high-performance Llama 3.3"},
+        {"id": "mistral-large-latest", "name": "Mistral Large", "description": "Mistral AI flagship reasoning"},
+    ],
 }
 
 # Cache for fetched models: provider -> (timestamp, models)
@@ -282,12 +287,22 @@ async def list_providers(refresh: bool = False) -> list[dict[str, Any]]:
             "default_model": settings.anthropic_model,
             "models": anthropic_models,
         },
+        {
+            "name": "custom",
+            "label": "Custom (OpenAI-API)",
+            "is_available": bool(settings.custom_api_key or settings.openai_api_key),
+            "requires_key": True,
+            "has_key": bool(settings.custom_api_key or settings.openai_api_key),
+            "default_model": settings.custom_model,
+            "models": [ModelOption(**m) for m in DEFAULT_MODELS["custom"]],
+        },
     ]
 
 
 class SaveKeyRequest(BaseModel):
     provider: str
     api_key: str
+    base_url: str | None = None
 
 
 @router.post("/key")
@@ -303,6 +318,7 @@ async def save_api_key(body: SaveKeyRequest) -> dict[str, Any]:
         "gemini": "GEMINI_API_KEY",
         "openai": "OPENAI_API_KEY",
         "anthropic": "ANTHROPIC_API_KEY",
+        "custom": "CUSTOM_API_KEY",
     }
 
     if provider_name not in key_map:
@@ -317,6 +333,12 @@ async def save_api_key(body: SaveKeyRequest) -> dict[str, Any]:
         settings.openai_api_key = key_val
     elif provider_name == "anthropic":
         settings.anthropic_api_key = key_val
+    elif provider_name == "custom":
+        settings.custom_api_key = key_val
+        if body.base_url and body.base_url.strip():
+            settings.custom_base_url = body.base_url.strip()
+            from agentforge.config import save_key_to_env
+            save_key_to_env("CUSTOM_BASE_URL", body.base_url.strip())
 
     # 2. Invalidate model cache so fresh models are fetched right away
     _model_cache.pop(provider_name, None)

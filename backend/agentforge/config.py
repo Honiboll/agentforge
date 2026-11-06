@@ -58,6 +58,7 @@ class Settings(BaseSettings):
     # OpenAI
     openai_api_key: str = ""
     openai_model: str = "gpt-4o"
+    openai_base_url: str = "https://api.openai.com/v1"
 
     # Google Gemini
     gemini_api_key: str = ""
@@ -70,6 +71,11 @@ class Settings(BaseSettings):
     # Ollama (local)
     ollama_base_url: str = "http://localhost:11434"
     ollama_model: str = "llama3.2"
+
+    # Custom / OpenAI-Compatible (DeepSeek, Groq, OpenRouter, vLLM, LM Studio)
+    custom_api_key: str = ""
+    custom_base_url: str = "https://api.openai.com/v1"
+    custom_model: str = "gpt-4o"
 
     # --- Backend ---
     backend_host: str = "0.0.0.0"

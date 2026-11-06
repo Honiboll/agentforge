@@ -10,10 +10,13 @@ from agentforge.providers.base import BaseLLMProvider
 class OpenAIProvider(BaseLLMProvider):
     name = "openai"
 
-    def __init__(self, api_key: str, model: str = "gpt-4o") -> None:
+    def __init__(self, api_key: str, model: str = "gpt-4o", base_url: str = "https://api.openai.com/v1") -> None:
         self.api_key = api_key.strip() if api_key else ""
-        self.model = model
-        self.base_url = "https://api.openai.com/v1"
+        m = (model or "gpt-4o").strip().strip('"').strip("'")
+        if m.startswith("openai/"):
+            m = m[len("openai/"):]
+        self.model = m or "gpt-4o"
+        self.base_url = (base_url or "https://api.openai.com/v1").rstrip("/")
 
     async def generate(
         self,
@@ -57,7 +60,13 @@ class OpenAIProvider(BaseLLMProvider):
                                 err_msg = str(err_obj)
                     except Exception:
                         err_msg = resp.text[:300]
-                    raise RuntimeError(f"OpenAI API Error ({resp.status_code}): {err_msg or resp.reason_phrase}")
+                    if not err_msg:
+                        err_msg = resp.reason_phrase
+
+                    if "model_not_found" in err_msg.lower() or "does not exist" in err_msg.lower() or resp.status_code == 404:
+                        err_msg += f" — The model '{self.model}' was not found at {self.base_url}. Please check the exact model name or API provider."
+
+                    raise RuntimeError(f"OpenAI API Error ({resp.status_code}): {err_msg}")
 
                 data = resp.json()
                 return data["choices"][0]["message"]["content"]
