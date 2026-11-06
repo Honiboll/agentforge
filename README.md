@@ -105,49 +105,100 @@ AgentForge is flexible and works with both local and cloud models. You only need
 
 ## ⚡ Quick Start
 
-### Option 1: Docker (Recommended)
+> ⚠️ **IMPORTANT SECURITY RULE:** Never put real API keys in `.env.example`! Always copy it to `.env` and put your secret keys inside `.env`. The `.env` file is permanently ignored by Git and stays safe on your local computer.
 
-```bash
-git clone https://github.com/Honiboll/agentforge.git
-cd agentforge
-cp .env.example .env
-# Edit .env with your LLM API key
-docker compose up
-```
+Choose the setup guide for your operating system below:
 
-Open [http://localhost:3000](http://localhost:3000) 🎉
+---
 
-### Option 2: Manual Setup (Terminal by Terminal)
+### 🪟 Windows Setup Guide (Command Prompt or PowerShell)
 
-> ⚠️ **IMPORTANT SECURITY RULE:** Never put real API keys in `.env.example`! Always copy it to `.env` (`cp .env.example .env`) and put your secret keys inside `.env`. The `.env` file is completely ignored by Git and stays safe on your computer.
-
-#### 1. Clone & Setup Environment:
-```bash
+#### Step 1: Clone & Configure
+Open **Command Prompt (CMD)** or **PowerShell**:
+```cmd
 git clone https://github.com/Honiboll/agentforge.git
 cd agentforge
 
-# Create your private .env file from the template
-cp .env.example .env
-# Open .env in your editor (VS Code, Nano, etc.) and add your API key (if using Gemini/OpenAI/Claude)
-```
+:: Create your private .env file from template (Command Prompt)
+copy .env.example .env
 
-#### 2. Run Backend (Terminal 1):
-```bash
-cd agentforge/backend
+:: Or in PowerShell:
+:: Copy-Item .env.example .env
+```
+*(Open `.env` in Notepad or VS Code and paste your API key if you're using Gemini or OpenAI).*
+
+#### Step 2: Backend Setup & Run (Terminal 1)
+In your Command Prompt:
+```cmd
+cd backend
 python -m venv .venv
-source .venv/bin/activate   # On Windows: .venv\Scripts\activate
+.venv\Scripts\activate
 pip install -e ".[dev]"
 uvicorn agentforge.main:app --reload --port 8000
 ```
-> Server will be running at [http://localhost:8000](http://localhost:8000) (API Docs at `/docs`).
+> 💡 **PowerShell Users:** If you see `cannot be loaded because running scripts is disabled`, run this once:  
+> `Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass` then run `.\.venv\Scripts\Activate.ps1`.  
+> 💡 **Python Launcher:** If `python` opens the Windows Store, run `py -3 -m venv .venv` instead.
 
-#### 3. Run Frontend (Terminal 2 - Open a new terminal tab):
+#### Step 3: Frontend Setup & Run (Terminal 2)
+Open a **new** Command Prompt window:
+```cmd
+cd agentforge\frontend
+npm install
+npm run dev
+```
+🎉 Open your browser at **[http://localhost:3000](http://localhost:3000)**!
+
+---
+
+### 🍎 macOS & 🐧 Linux Setup Guide (Terminal / Bash / Zsh)
+
+#### Step 1: Clone & Configure
+Open your Terminal:
+```bash
+git clone https://github.com/Honiboll/agentforge.git
+cd agentforge
+
+# Create your private .env file
+cp .env.example .env
+# Open .env and add your API key if using Gemini/OpenAI/Claude
+```
+
+#### Step 2: Backend Setup & Run (Terminal 1)
+```bash
+cd backend
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -e ".[dev]"
+uvicorn agentforge.main:app --reload --port 8000
+```
+> Backend runs at [http://localhost:8000](http://localhost:8000) (Interactive Swagger Docs at `/docs`).
+
+#### Step 3: Frontend Setup & Run (Terminal 2 - New Tab)
 ```bash
 cd agentforge/frontend
 npm install
 npm run dev
 ```
-> Open your browser at **[http://localhost:3000](http://localhost:3000)** 🎉
+🎉 Open your browser at **[http://localhost:3000](http://localhost:3000)**!
+
+---
+
+### 🐳 Option 3: Docker (All Operating Systems)
+
+If you have Docker Desktop installed on Windows, Mac, or Linux:
+```bash
+git clone https://github.com/Honiboll/agentforge.git
+cd agentforge
+
+# Windows CMD:
+copy .env.example .env
+# Mac/Linux:
+# cp .env.example .env
+
+docker compose up
+```
+Open **[http://localhost:3000](http://localhost:3000)** 🎉
 
 ---
 
