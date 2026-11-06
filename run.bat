@@ -49,3 +49,4 @@ echo.
 :: 6. Open default browser after a short delay
 timeout /t 3 >nul
 start http://localhost:3000
+
