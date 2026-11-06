@@ -25,17 +25,34 @@ class OllamaProvider(BaseLLMProvider):
             messages.append({"role": "system", "content": system_prompt})
         messages.append({"role": "user", "content": prompt})
 
-        async with httpx.AsyncClient(timeout=300) as client:
-            resp = await client.post(
-                f"{self.base_url}/api/chat",
-                json={
-                    "model": self.model,
-                    "messages": messages,
-                    "stream": False,
-                    "options": {"temperature": temperature},
-                },
+        try:
+            async with httpx.AsyncClient(timeout=300) as client:
+                resp = await client.post(
+                    f"{self.base_url}/api/chat",
+                    json={
+                        "model": self.model,
+                        "messages": messages,
+                        "stream": False,
+                        "options": {"temperature": temperature},
+                    },
+                )
+                if resp.is_error:
+                    err_msg = ""
+                    try:
+                        err_msg = resp.json().get("error", "")
+                    except Exception:
+                        err_msg = resp.text[:300]
+                    raise RuntimeError(f"Ollama Error ({resp.status_code}): {err_msg or resp.reason_phrase}")
+
+                data = resp.json()
+                return data["message"]["content"]
+        except httpx.ConnectError:
+            raise RuntimeError(
+                f"Cannot connect to Ollama at {self.base_url}. Please ensure Ollama is installed and running on your machine (e.g. run 'ollama run {self.model}' in your terminal)."
             )
-            resp.raise_for_status()
-            data = resp.json()
-            return data["message"]["content"]
+        except httpx.TimeoutException:
+            raise RuntimeError(
+                f"Request to Ollama timed out (300s). The model '{self.model}' may be too large or slow for your hardware."
+            )
+
 

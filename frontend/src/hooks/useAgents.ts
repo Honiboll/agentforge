@@ -53,7 +53,8 @@ export function useAgents() {
   }, []);
 
   const reset = useCallback(() => setAgents([]), []);
+  const setInitialAgents = useCallback((initialAgents: Agent[]) => setAgents(initialAgents), []);
 
-  return { agents, processEvent, reset };
+  return { agents, processEvent, reset, setInitialAgents };
 }
 

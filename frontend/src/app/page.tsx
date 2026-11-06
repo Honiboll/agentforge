@@ -174,6 +174,11 @@ export default function Home() {
                       <p className="text-xs text-[var(--text-muted)] line-clamp-2">
                         {proj.user_request}
                       </p>
+                      {proj.status === "error" && proj.error_message && (
+                        <div className="rounded-lg bg-red-500/10 border border-red-500/20 p-2 text-[11px] text-red-300 font-mono line-clamp-2">
+                          ⚠️ {proj.error_message}
+                        </div>
+                      )}
                     </div>
 
                     <div className="mt-4 flex items-center justify-between pt-3 border-t border-[var(--border)] text-[11px] text-[var(--text-muted)]">

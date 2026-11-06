@@ -16,6 +16,7 @@ from agentforge.core.orchestrator import Orchestrator
 from agentforge.models.database import async_session, get_session
 from agentforge.models.project import ProjectModel
 from agentforge.providers.provider_factory import create_provider
+from agentforge.utils.events import event_bus
 from agentforge.utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -39,6 +40,8 @@ class ProjectOut(BaseModel):
     status: str
     provider_name: str
     model_name: str | None = None
+    error_message: str | None = None
+    result: dict[str, Any] | None = None
     created_at: str
 
 
@@ -67,6 +70,8 @@ async def create_project(
         "status": project.status,
         "provider_name": project.provider_name,
         "model_name": project.model_name,
+        "error_message": project.error_message,
+        "result": project.result,
         "created_at": project.created_at.isoformat(),
     }
 
@@ -83,6 +88,8 @@ async def list_projects(session: AsyncSession = Depends(get_session)) -> list[di
             "status": p.status,
             "provider_name": p.provider_name,
             "model_name": p.model_name,
+            "error_message": p.error_message,
+            "result": p.result,
             "created_at": p.created_at.isoformat(),
         }
         for p in projects
@@ -104,6 +111,8 @@ async def get_project(
         "status": project.status,
         "provider_name": project.provider_name,
         "model_name": project.model_name,
+        "error_message": project.error_message,
+        "result": project.result,
         "created_at": project.created_at.isoformat(),
     }
 
@@ -116,13 +125,29 @@ async def start_project(
     project = await session.get(ProjectModel, project_id)
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
-    if project.status == "running":
-        raise HTTPException(status_code=409, detail="Project already running")
+    if project.status == "running" and project_id in _running and not _running[project_id].done():
+        raise HTTPException(status_code=409, detail="Project is already actively running")
+
+    # Validate provider upfront
+    try:
+        provider = create_provider(project.provider_name, settings, model=project.model_name)
+    except Exception as exc:
+        err_msg = str(exc)
+        project.status = "error"
+        project.error_message = err_msg
+        project.result = {"error": err_msg}
+        await session.commit()
+        await event_bus.emit(
+            project_id,
+            "project_failed",
+            {"error": err_msg, "project_id": project_id},
+        )
+        raise HTTPException(status_code=400, detail=err_msg)
 
     project.status = "running"
+    project.error_message = None
     await session.commit()
 
-    provider = create_provider(project.provider_name, settings, model=project.model_name)
     orchestrator = Orchestrator(provider=provider)
 
     async def _run() -> None:
@@ -133,19 +158,31 @@ async def start_project(
                 if p:
                     p.status = "completed" if result.success else "error"
                     p.title = result.title
+                    if not result.success:
+                        failed = [f"{r.agent_name}: {r.error or 'Failed'}" for r in result.agent_results if not r.success]
+                        p.error_message = "; ".join(failed) or "One or more tasks failed."
+                    else:
+                        p.error_message = None
                     p.result = {
                         "summary": result.summary,
                         "agents": [r.model_dump() for r in result.agent_results],
                     }
                     await s.commit()
         except Exception as exc:
-            logger.error("Project %s execution failed: %s", project_id, exc, exc_info=True)
+            err_msg = str(exc)
+            logger.error("Project %s execution failed: %s", project_id, err_msg, exc_info=True)
             async with async_session() as s:
                 p = await s.get(ProjectModel, project_id)
                 if p:
                     p.status = "error"
-                    p.result = {"error": "Execution failed. Check backend logs for details."}
+                    p.error_message = err_msg
+                    p.result = {"error": err_msg}
                     await s.commit()
+            await event_bus.emit(
+                project_id,
+                "project_failed",
+                {"error": err_msg, "project_id": project_id},
+            )
 
     task = asyncio.create_task(_run())
     _running[project_id] = task

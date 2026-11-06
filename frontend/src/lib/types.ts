@@ -26,6 +26,8 @@ export interface Project {
   status: string;
   provider_name: string;
   model_name?: string;
+  error_message?: string | null;
+  result?: Record<string, unknown> | null;
   created_at: string;
 }
 

@@ -39,22 +39,52 @@ class Orchestrator:
         await event_bus.emit(project_id, "project_started", {"request": user_request[:200]})
 
         # 1. Analyze
-        plan: AnalysisPlan = await self.analyzer.analyze(user_request, project_id)
+        try:
+            plan: AnalysisPlan = await self.analyzer.analyze(user_request, project_id)
+        except Exception as exc:
+            err_msg = str(exc)
+            logger.error("Analysis failed for project %s: %s", project_id, err_msg)
+            await event_bus.emit(
+                project_id,
+                "project_failed",
+                {"error": f"Analysis failed: {err_msg}", "phase": "analysis"},
+            )
+            raise
 
         # 2. Create agents
-        agents = await self.factory.create_agents_from_plan(plan, self.provider, project_id)
+        try:
+            agents = await self.factory.create_agents_from_plan(plan, self.provider, project_id)
+        except Exception as exc:
+            err_msg = str(exc)
+            logger.error("Agent creation failed for project %s: %s", project_id, err_msg)
+            await event_bus.emit(
+                project_id,
+                "project_failed",
+                {"error": f"Agent creation failed: {err_msg}", "phase": "factory"},
+            )
+            raise
 
         # 3. Run agents respecting dependencies
         results = await self._run_agents(agents, plan, project_id)
 
-        await event_bus.emit(project_id, "project_completed", {"title": plan.project_title})
+        all_success = all(r.success for r in results)
+        if not all_success:
+            failed_agents = [f"{r.agent_name}: {r.error or 'Task failed'}" for r in results if not r.success]
+            err_summary = "; ".join(failed_agents)
+            await event_bus.emit(
+                project_id,
+                "project_failed",
+                {"error": f"Execution failed in one or more agents: {err_summary}", "title": plan.project_title},
+            )
+        else:
+            await event_bus.emit(project_id, "project_completed", {"title": plan.project_title})
 
         return ProjectResult(
             project_id=project_id,
             title=plan.project_title,
             summary=plan.summary,
             agent_results=results,
-            success=all(r.success for r in results),
+            success=all_success,
         )
 
     # ------------------------------------------------------------------

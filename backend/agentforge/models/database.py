@@ -22,6 +22,17 @@ class Base(DeclarativeBase):
 async def init_db() -> None:
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        from sqlalchemy import text
+        columns = [
+            ("model_name", "VARCHAR(64)"),
+            ("error_message", "TEXT"),
+            ("result", "JSON"),
+        ]
+        for col_name, col_type in columns:
+            try:
+                await conn.execute(text(f"ALTER TABLE projects ADD COLUMN {col_name} {col_type};"))
+            except Exception:
+                pass
 
 
 async def get_session() -> AsyncSession:  # type: ignore[misc]

@@ -13,13 +13,13 @@ def create_provider(provider_name: str, config: Settings, model: str | None = No
         case "openai":
             from agentforge.providers.openai_provider import OpenAIProvider
             if not config.openai_api_key:
-                raise ValueError("OPENAI_API_KEY is not set.")
+                raise ValueError("OpenAI API key is missing. Please enter your API key in Settings or the Provider selector.")
             return OpenAIProvider(api_key=config.openai_api_key, model=model or config.openai_model)
 
         case "gemini":
             from agentforge.providers.gemini_provider import GeminiProvider
             if not config.gemini_api_key:
-                raise ValueError("GEMINI_API_KEY is not set.")
+                raise ValueError("Google Gemini API key is missing. Please enter your API key in Settings or the Provider selector.")
             return GeminiProvider(api_key=config.gemini_api_key, model=model or config.gemini_model)
 
         case "ollama":
@@ -29,7 +29,7 @@ def create_provider(provider_name: str, config: Settings, model: str | None = No
         case "anthropic":
             from agentforge.providers.anthropic_provider import AnthropicProvider
             if not config.anthropic_api_key:
-                raise ValueError("ANTHROPIC_API_KEY is not set.")
+                raise ValueError("Anthropic API key is missing. Please enter your API key in Settings or the Provider selector.")
             return AnthropicProvider(api_key=config.anthropic_api_key, model=model or config.anthropic_model)
 
         case _:

@@ -12,6 +12,8 @@ const EVENT_ICONS: Record<string, string> = {
   task_started: "▶️",
   task_completed: "✅",
   project_completed: "🎉",
+  project_failed: "❌",
+  error: "⚠️",
 };
 
 export function AgentTimeline({ events }: { events: WSEvent[] }) {
@@ -20,29 +22,36 @@ export function AgentTimeline({ events }: { events: WSEvent[] }) {
   return (
     <div className="space-y-2 max-h-80 overflow-y-auto pr-2">
       <AnimatePresence initial={false}>
-        {meaningful.map((event, i) => (
-          <motion.div
-            key={i}
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            className="flex items-start gap-3 rounded-lg bg-[var(--bg-card)] p-3 text-sm border border-[var(--border)]"
-          >
-            <span className="text-lg shrink-0">
-              {EVENT_ICONS[event.event] || "📌"}
-            </span>
-            <div className="flex-1 min-w-0">
-              <p className="text-white font-medium text-xs">
-                {formatEventName(event.event)}
-              </p>
-              <p className="text-[var(--text-muted)] text-xs truncate">
-                {formatEventData(event)}
-              </p>
-            </div>
-            <span className="text-[var(--text-muted)] text-xs shrink-0">
-              {new Date(event.timestamp).toLocaleTimeString()}
-            </span>
-          </motion.div>
-        ))}
+        {meaningful.map((event, i) => {
+          const isError = event.event === "project_failed" || event.event === "error";
+          return (
+            <motion.div
+              key={i}
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              className={`flex items-start gap-3 rounded-lg p-3 text-sm border ${
+                isError
+                  ? "bg-red-500/10 border-red-500/40 text-red-300"
+                  : "bg-[var(--bg-card)] border-[var(--border)]"
+              }`}
+            >
+              <span className="text-lg shrink-0">
+                {EVENT_ICONS[event.event] || "📌"}
+              </span>
+              <div className="flex-1 min-w-0">
+                <p className={`font-medium text-xs ${isError ? "text-red-400 font-bold" : "text-white"}`}>
+                  {formatEventName(event.event)}
+                </p>
+                <p className={`text-xs ${isError ? "text-red-200" : "text-[var(--text-muted)] truncate"}`}>
+                  {formatEventData(event)}
+                </p>
+              </div>
+              <span className="text-[var(--text-muted)] text-xs shrink-0">
+                {new Date(event.timestamp).toLocaleTimeString()}
+              </span>
+            </motion.div>
+          );
+        })}
       </AnimatePresence>
       {meaningful.length === 0 && (
         <p className="text-center text-[var(--text-muted)] text-sm py-8">
@@ -54,6 +63,7 @@ export function AgentTimeline({ events }: { events: WSEvent[] }) {
 }
 
 function formatEventName(event: string): string {
+  if (event === "project_failed") return "Project Failed";
   return event
     .replace(/_/g, " ")
     .replace(/\b\w/g, (c) => c.toUpperCase());
@@ -61,6 +71,8 @@ function formatEventName(event: string): string {
 
 function formatEventData(event: WSEvent): string {
   const d = event.data;
+  if (d.error) return String(d.error);
+  if (d.message) return String(d.message);
   if (d.agent_name) return String(d.agent_name);
   if (d.title) return String(d.title);
   if (d.task) return String(d.task);
