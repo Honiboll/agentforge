@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { listProviders, saveApiKey } from "@/lib/api";
+import { listProviders, saveApiKey, detectAndSaveApiKey } from "@/lib/api";
 import type { Provider, ModelOption } from "@/lib/types";
 
 interface Props {
@@ -32,6 +32,34 @@ export function ProjectSetup({ onSubmit, loading }: Props) {
   const [savingKey, setSavingKey] = useState(false);
   const [keySuccess, setKeySuccess] = useState("");
   const [keyError, setKeyError] = useState("");
+
+  // Universal Smart Key Auto-Detector
+  const [smartKey, setSmartKey] = useState("");
+  const [detectingKey, setDetectingKey] = useState(false);
+  const [smartSuccess, setSmartSuccess] = useState("");
+  const [smartError, setSmartError] = useState("");
+
+  const handleAutoDetectKey = async () => {
+    if (!smartKey.trim()) return;
+    setDetectingKey(true);
+    setSmartError("");
+    setSmartSuccess("");
+    try {
+      const res = await detectAndSaveApiKey(smartKey.trim());
+      if (res.success && res.provider) {
+        setSmartSuccess(res.message || `Detected and activated for ${res.provider_label}!`);
+        setSelectedProvider(res.provider);
+        setSmartKey("");
+        fetchProviders(true);
+      } else {
+        setSmartError(res.error || "Could not detect provider for this key");
+      }
+    } catch (e: unknown) {
+      setSmartError(e instanceof Error ? e.message : "Error detecting key");
+    } finally {
+      setDetectingKey(false);
+    }
+  };
 
   const fetchProviders = (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
@@ -122,6 +150,59 @@ export function ProjectSetup({ onSubmit, loading }: Props) {
                      text-white placeholder-gray-600 focus:border-brand-500 focus:ring-1
                      focus:ring-brand-500 focus:outline-none resize-none transition-colors"
         />
+      </div>
+
+      {/* Universal Smart Key Auto-Detector */}
+      <div className="rounded-xl border border-brand-500/30 bg-gradient-to-r from-brand-950/40 via-[var(--bg-card)] to-brand-950/20 p-4 space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="text-base">⚡</span>
+            <span className="text-xs font-bold text-white uppercase tracking-wider">
+              Smart Key Auto-Detector
+            </span>
+            <span className="rounded-full bg-brand-500/20 px-2 py-0.5 text-[10px] font-semibold text-brand-300 border border-brand-500/30">
+              Auto-Recognize
+            </span>
+          </div>
+          <span className="text-[11px] text-[var(--text-muted)]">
+            Paste any key (Gemini, OpenAI, Claude)
+          </span>
+        </div>
+
+        <div className="flex gap-2">
+          <input
+            type="password"
+            value={smartKey}
+            onChange={(e) => setSmartKey(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                handleAutoDetectKey();
+              }
+            }}
+            placeholder="Paste ANY API key here (e.g. AIzaSy..., sk-proj-..., sk-ant-...)..."
+            className="flex-1 rounded-lg border border-[var(--border)] bg-black/50 px-3 py-2 text-xs text-white placeholder-gray-500 focus:border-brand-500 focus:outline-none transition-colors"
+          />
+          <button
+            type="button"
+            onClick={handleAutoDetectKey}
+            disabled={detectingKey || !smartKey.trim()}
+            className="rounded-lg bg-brand-600 hover:bg-brand-500 disabled:opacity-40 px-3.5 py-2 text-xs font-semibold text-white transition-all shadow-sm flex items-center gap-1.5 shrink-0"
+          >
+            <span>{detectingKey ? "⏳ Detecting…" : "⚡ Detect & Add"}</span>
+          </button>
+        </div>
+
+        {smartSuccess && (
+          <p className="text-xs font-medium text-green-400 bg-green-500/10 border border-green-500/20 rounded-lg p-2 flex items-center gap-1.5">
+            <span>✅</span> {smartSuccess}
+          </p>
+        )}
+        {smartError && (
+          <p className="text-xs font-medium text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg p-2 flex items-center gap-1.5">
+            <span>⚠️</span> {smartError}
+          </p>
+        )}
       </div>
 
       {/* Provider Selector with API Key & Availability Inspection */}

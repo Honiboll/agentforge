@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { listProviders, saveApiKey, testProvider } from "@/lib/api";
+import { listProviders, saveApiKey, testProvider, detectAndSaveApiKey } from "@/lib/api";
 import type { Provider } from "@/lib/types";
 
 export default function SettingsPage() {
@@ -13,6 +13,33 @@ export default function SettingsPage() {
   const [keys, setKeys] = useState<Record<string, string>>({});
   const [savingKey, setSavingKey] = useState<string | null>(null);
   const [keyNotifs, setKeyNotifs] = useState<Record<string, string>>({});
+
+  // Universal Smart Key Auto-Detector
+  const [smartKey, setSmartKey] = useState("");
+  const [detectingKey, setDetectingKey] = useState(false);
+  const [smartSuccess, setSmartSuccess] = useState("");
+  const [smartError, setSmartError] = useState("");
+
+  const handleAutoDetect = async () => {
+    if (!smartKey.trim()) return;
+    setDetectingKey(true);
+    setSmartError("");
+    setSmartSuccess("");
+    try {
+      const res = await detectAndSaveApiKey(smartKey.trim());
+      if (res.success) {
+        setSmartSuccess(res.message || "Key successfully detected and activated!");
+        setSmartKey("");
+        loadProviders(true);
+      } else {
+        setSmartError(res.error || "Could not detect provider for this key");
+      }
+    } catch (e: unknown) {
+      setSmartError(e instanceof Error ? e.message : "Error detecting key");
+    } finally {
+      setDetectingKey(false);
+    }
+  };
 
   const loadProviders = (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
@@ -80,6 +107,67 @@ export default function SettingsPage() {
         >
           {refreshing ? "Scanning APIs…" : "🔄 Check for New Models"}
         </button>
+      </motion.div>
+
+      {/* Universal Smart Key Auto-Detector */}
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="rounded-2xl border border-brand-500/40 bg-gradient-to-r from-brand-950/40 via-[var(--bg-card)] to-brand-950/20 p-5 space-y-3 shadow-lg shadow-brand-950/20"
+      >
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="text-xl">⚡</span>
+            <h2 className="text-sm font-bold text-white uppercase tracking-wider">
+              Universal Key Auto-Detector
+            </h2>
+            <span className="rounded-full bg-brand-500/20 px-2 py-0.5 text-[10px] font-semibold text-brand-300 border border-brand-500/30">
+              One-Click
+            </span>
+          </div>
+          <span className="text-xs text-[var(--text-muted)]">
+            Recognizes Gemini, OpenAI, Claude, etc.
+          </span>
+        </div>
+
+        <p className="text-xs text-[var(--text-muted)]">
+          Paste any API key below. AgentForge will automatically identify the provider, verify the key against the API, and activate it immediately.
+        </p>
+
+        <div className="flex gap-2">
+          <input
+            type="password"
+            value={smartKey}
+            onChange={(e) => setSmartKey(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                handleAutoDetect();
+              }
+            }}
+            placeholder="Paste ANY API key here (e.g. AIzaSy..., sk-proj-..., sk-ant-...)..."
+            className="flex-1 rounded-xl border border-[var(--border)] bg-black/50 px-3.5 py-2.5 text-xs text-white placeholder-gray-500 focus:border-brand-500 focus:outline-none transition-colors"
+          />
+          <button
+            type="button"
+            onClick={handleAutoDetect}
+            disabled={detectingKey || !smartKey.trim()}
+            className="rounded-xl bg-brand-600 hover:bg-brand-500 disabled:opacity-40 px-4 py-2.5 text-xs font-semibold text-white transition-all shadow-sm flex items-center gap-1.5 shrink-0"
+          >
+            <span>{detectingKey ? "⏳ Detecting…" : "⚡ Auto-Detect & Activate"}</span>
+          </button>
+        </div>
+
+        {smartSuccess && (
+          <p className="text-xs font-medium text-green-400 bg-green-500/10 border border-green-500/20 rounded-xl p-2.5 flex items-center gap-2">
+            <span>✅</span> {smartSuccess}
+          </p>
+        )}
+        {smartError && (
+          <p className="text-xs font-medium text-red-400 bg-red-500/10 border border-red-500/20 rounded-xl p-2.5 flex items-center gap-2">
+            <span>⚠️</span> {smartError}
+          </p>
+        )}
       </motion.div>
 
       <div className="space-y-4">

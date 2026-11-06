@@ -32,6 +32,7 @@ AgentForge is an open-source platform that **analyzes your requirements** and au
 ### Key Features
 
 - 🤖 **Dynamic Agent Creation** — Agents are designed on-the-fly based on your specific requirements.
+- ⚡ **Smart Key Auto-Detector** — Paste ANY API key (Gemini, OpenAI, Claude) and AgentForge will auto-identify the provider, verify the key, and unlock its models!
 - 🔑 **In-Dashboard Key Setup** — Paste your API keys directly into the web UI—no manual file editing required!
 - 🔄 **Live Model Discovery** — Automatically discovers newly released models from Google, OpenAI, and Ollama APIs.
 - ✏️ **Custom Model Input** — Type in any brand-new or fine-tuned model name to use it immediately.
@@ -230,13 +231,18 @@ Open **[http://localhost:3000](http://localhost:3000)** 🎉
 
 AgentForge makes it effortless to connect your preferred AI models. You have two convenient options:
 
-#### Option A: Direct In-Dashboard Setup (Recommended & Easiest)
-You don't need to edit any configuration files manually:
-1. Start AgentForge and open **[http://localhost:3000](http://localhost:3000)**.
-2. Under **AI Provider**, select your service (e.g. Google Gemini, OpenAI, or Anthropic).
-3. If an API key is required, an inline input box will appear immediately right below the selector.
-4. Paste your API key and click **Save & Apply** (or manage all keys anytime under the **Settings** page in the top navbar).
-5. Your key is securely verified, saved, and active instantly without restarting servers!
+#### Option A: Smart Key Auto-Detector (Easiest & Fastest ⚡)
+You don't even need to pick a provider manually:
+1. Start AgentForge and open **[http://localhost:3000](http://localhost:3000)** (or go to **Settings**).
+2. Paste any API key into the **"⚡ Smart Key Auto-Detector"** box.
+3. Click **Detect & Add ⚡** (or press Enter).
+4. AgentForge instantly identifies the provider (Google Gemini, OpenAI, or Anthropic Claude), verifies the key, saves it, and immediately unlocks all models!
+
+#### Option B: Manual In-Dashboard Selection
+1. Under **AI Provider**, select your service (e.g. Google Gemini, OpenAI, or Anthropic).
+2. If an API key is required, an inline input box will appear immediately right below the selector.
+3. Paste your API key and click **Save & Apply** (or manage keys under **Settings**).
+4. Your key is verified, saved, and active instantly without restarting servers!
 
 #### Option B: Local & Free with Ollama (No API Key Required)
 1. Install [Ollama](https://ollama.com/) and run any model in your terminal (e.g. `ollama run llama3.2`).

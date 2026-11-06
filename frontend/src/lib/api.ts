@@ -67,3 +67,17 @@ export function saveApiKey(provider: string, api_key: string) {
   });
 }
 
+export function detectAndSaveApiKey(api_key: string) {
+  return request<{
+    success: boolean;
+    provider?: string;
+    provider_label?: string;
+    message?: string;
+    unlocked_models?: string[];
+    error?: string;
+  }>("/api/providers/detect-key", {
+    method: "POST",
+    body: JSON.stringify({ api_key }),
+  });
+}
+

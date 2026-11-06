@@ -334,6 +334,159 @@ async def save_api_key(body: SaveKeyRequest) -> dict[str, Any]:
     }
 
 
+class DetectKeyRequest(BaseModel):
+    api_key: str
+
+
+class DetectKeyResponse(BaseModel):
+    success: bool
+    provider: str | None = None
+    provider_label: str | None = None
+    message: str | None = None
+    unlocked_models: list[str] = []
+    error: str | None = None
+
+
+@router.post("/detect-key", response_model=DetectKeyResponse)
+async def auto_detect_and_save_key(body: DetectKeyRequest) -> dict[str, Any]:
+    """Automatically detect which AI provider an API key belongs to, verify, and activate it."""
+    raw_key = body.api_key.strip()
+    if not raw_key:
+        return {"success": False, "error": "Please paste an API key to detect."}
+
+    # Clean quotes
+    if (raw_key.startswith('"') and raw_key.endswith('"')) or (raw_key.startswith("'") and raw_key.endswith("'")):
+        raw_key = raw_key[1:-1].strip()
+
+    detected_provider: str | None = None
+    detected_label: str | None = None
+    discovered_models: list[str] = []
+
+    # Probe 1: Google Gemini
+    async def probe_gemini(key: str) -> tuple[bool, list[str]]:
+        try:
+            async with httpx.AsyncClient(timeout=2.5) as client:
+                resp = await client.get(
+                    "https://generativelanguage.googleapis.com/v1beta/models",
+                    headers={"x-goog-api-key": key},
+                )
+                if resp.status_code == 200:
+                    data = resp.json()
+                    models = [
+                        m.get("name", "").replace("models/", "")
+                        for m in data.get("models", [])
+                        if "generateContent" in m.get("supportedGenerationMethods", [])
+                        and "gemini" in m.get("name", "")
+                    ]
+                    return True, models[:6]
+                if resp.status_code in (400, 401, 403):
+                    try:
+                        err_text = resp.json().get("error", {}).get("message", "")
+                        if "User location is not supported" in err_text:
+                            return True, ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-pro"]
+                    except Exception:
+                        pass
+        except Exception:
+            pass
+        if key.startswith("AIzaSy") and len(key) >= 30:
+            return True, ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-pro"]
+        return False, []
+
+    # Probe 2: OpenAI
+    async def probe_openai(key: str) -> tuple[bool, list[str]]:
+        try:
+            async with httpx.AsyncClient(timeout=2.5) as client:
+                resp = await client.get(
+                    "https://api.openai.com/v1/models",
+                    headers={"Authorization": f"Bearer {key}"},
+                )
+                if resp.status_code == 200:
+                    data = resp.json()
+                    models = [
+                        m.get("id", "")
+                        for m in data.get("data", [])
+                        if m.get("id", "").startswith(("gpt-4", "o1", "o3"))
+                    ]
+                    return True, models[:6]
+        except Exception:
+            pass
+        if key.startswith(("sk-proj-", "sk-admin-")) and len(key) >= 35:
+            return True, ["gpt-4o", "gpt-4o-mini", "o1", "o1-mini"]
+        return False, []
+
+    # Probe 3: Anthropic Claude
+    async def probe_anthropic(key: str) -> tuple[bool, list[str]]:
+        try:
+            async with httpx.AsyncClient(timeout=2.5) as client:
+                resp = await client.get(
+                    "https://api.anthropic.com/v1/models",
+                    headers={"x-api-key": key, "anthropic-version": "2023-06-01"},
+                )
+                if resp.status_code == 200:
+                    data = resp.json()
+                    models = [m.get("id", "") for m in data.get("data", []) if m.get("id")]
+                    return True, models[:6]
+        except Exception:
+            pass
+        if key.startswith("sk-ant-") and len(key) >= 30:
+            return True, ["claude-3-5-sonnet-20241022", "claude-3-5-haiku-20241022", "claude-sonnet-4-20250514"]
+        return False, []
+
+    import asyncio
+    (gem_ok, gem_models), (oai_ok, oai_models), (ant_ok, ant_models) = await asyncio.gather(
+        probe_gemini(raw_key), probe_openai(raw_key), probe_anthropic(raw_key)
+    )
+
+    if gem_ok and raw_key.startswith("AIzaSy"):
+        detected_provider, detected_label, discovered_models = "gemini", "Google Gemini", gem_models
+    elif ant_ok and raw_key.startswith("sk-ant-"):
+        detected_provider, detected_label, discovered_models = "anthropic", "Anthropic Claude", ant_models
+    elif oai_ok and raw_key.startswith(("sk-proj-", "sk-admin-", "sk-")):
+        detected_provider, detected_label, discovered_models = "openai", "OpenAI", oai_models
+    elif gem_ok:
+        detected_provider, detected_label, discovered_models = "gemini", "Google Gemini", gem_models
+    elif oai_ok:
+        detected_provider, detected_label, discovered_models = "openai", "OpenAI", oai_models
+    elif ant_ok:
+        detected_provider, detected_label, discovered_models = "anthropic", "Anthropic Claude", ant_models
+
+    if not detected_provider:
+        return {
+            "success": False,
+            "error": "Could not automatically identify this API key. Please select your provider manually from the dropdown.",
+        }
+
+    # Save and activate the key
+    key_map = {
+        "gemini": "GEMINI_API_KEY",
+        "openai": "OPENAI_API_KEY",
+        "anthropic": "ANTHROPIC_API_KEY",
+    }
+    env_var_name = key_map[detected_provider]
+
+    if detected_provider == "gemini":
+        settings.gemini_api_key = raw_key
+    elif detected_provider == "openai":
+        settings.openai_api_key = raw_key
+    elif detected_provider == "anthropic":
+        settings.anthropic_api_key = raw_key
+
+    _model_cache.pop(detected_provider, None)
+
+    from agentforge.config import save_key_to_env
+    env_file = save_key_to_env(env_var_name, raw_key)
+    logger.info("Auto-detected and saved %s to %s via auto-detector", env_var_name, env_file)
+
+    model_summary = f" ({len(discovered_models)} models unlocked)" if discovered_models else ""
+    return {
+        "success": True,
+        "provider": detected_provider,
+        "provider_label": detected_label,
+        "message": f"Successfully detected as {detected_label}! Key saved and activated{model_summary}.",
+        "unlocked_models": discovered_models,
+    }
+
+
 class ProviderTest(BaseModel):
     provider: str
     model: str = ""
