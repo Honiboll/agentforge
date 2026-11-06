@@ -117,30 +117,37 @@ docker compose up
 
 Open [http://localhost:3000](http://localhost:3000) 🎉
 
-### Option 2: Manual Setup
+### Option 2: Manual Setup (Terminal by Terminal)
 
+> ⚠️ **IMPORTANT SECURITY RULE:** Never put real API keys in `.env.example`! Always copy it to `.env` (`cp .env.example .env`) and put your secret keys inside `.env`. The `.env` file is completely ignored by Git and stays safe on your computer.
+
+#### 1. Clone & Setup Environment:
 ```bash
-# Clone
 git clone https://github.com/Honiboll/agentforge.git
 cd agentforge
 
-# Configure environment
+# Create your private .env file from the template
 cp .env.example .env
+# Open .env in your editor (VS Code, Nano, etc.) and add your API key (if using Gemini/OpenAI/Claude)
+```
 
-# Backend setup & run
-cd backend
+#### 2. Run Backend (Terminal 1):
+```bash
+cd agentforge/backend
 python -m venv .venv
-source .venv/bin/activate  # Windows: .venv\Scripts\activate
+source .venv/bin/activate   # On Windows: .venv\Scripts\activate
 pip install -e ".[dev]"
 uvicorn agentforge.main:app --reload --port 8000
+```
+> Server will be running at [http://localhost:8000](http://localhost:8000) (API Docs at `/docs`).
 
-# Frontend setup & run (in a separate terminal)
-cd frontend
+#### 3. Run Frontend (Terminal 2 - Open a new terminal tab):
+```bash
+cd agentforge/frontend
 npm install
 npm run dev
 ```
-
-Open [http://localhost:3000](http://localhost:3000) in your browser 🎉
+> Open your browser at **[http://localhost:3000](http://localhost:3000)** 🎉
 
 ---
 
