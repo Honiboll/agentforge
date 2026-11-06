@@ -16,6 +16,16 @@ def create_provider(provider_name: str, config: Settings, model: str | None = No
                 raise ValueError("OpenAI API key is missing. Please enter your API key in Settings or the Provider selector.")
             return OpenAIProvider(api_key=config.openai_api_key, model=model or config.openai_model, base_url=config.openai_base_url)
 
+        case "groq":
+            from agentforge.providers.openai_provider import OpenAIProvider
+            if not config.groq_api_key:
+                raise ValueError("Groq API key is missing. Please enter your free Groq API key in Settings or the Provider selector.")
+            return OpenAIProvider(
+                api_key=config.groq_api_key,
+                model=model or config.groq_model,
+                base_url=config.groq_base_url or "https://api.groq.com/openai/v1",
+            )
+
         case "custom" | "openai-compatible":
             from agentforge.providers.openai_provider import OpenAIProvider
             key = config.custom_api_key or config.openai_api_key

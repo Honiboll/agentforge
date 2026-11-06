@@ -38,9 +38,11 @@ def sanitize_model_name(provider: str, model_name: str | None) -> str | None:
             m = m[len("models/"):]
         if m.startswith("google/"):
             m = m[len("google/"):]
-    elif p in ("openai", "custom", "openai-compatible"):
+    elif p in ("openai", "groq", "custom", "openai-compatible"):
         if m.startswith("openai/"):
             m = m[len("openai/"):]
+        if m.startswith("groq/"):
+            m = m[len("groq/"):]
     elif p == "anthropic":
         if m.startswith("anthropic/"):
             m = m[len("anthropic/"):]
@@ -87,6 +89,9 @@ async def create_project(
         if p_key == "gemini":
             settings.gemini_api_key = key_val
             save_key_to_env("GEMINI_API_KEY", key_val)
+        elif p_key == "groq":
+            settings.groq_api_key = key_val
+            save_key_to_env("GROQ_API_KEY", key_val)
         elif p_key == "openai":
             settings.openai_api_key = key_val
             save_key_to_env("OPENAI_API_KEY", key_val)

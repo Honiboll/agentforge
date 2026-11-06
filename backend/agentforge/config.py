@@ -72,7 +72,12 @@ class Settings(BaseSettings):
     ollama_base_url: str = "http://localhost:11434"
     ollama_model: str = "llama3.2"
 
-    # Custom / OpenAI-Compatible (DeepSeek, Groq, OpenRouter, vLLM, LM Studio)
+    # Groq (Fast & Free)
+    groq_api_key: str = ""
+    groq_model: str = "llama-3.3-70b-versatile"
+    groq_base_url: str = "https://api.groq.com/openai/v1"
+
+    # Custom / OpenAI-Compatible (DeepSeek, OpenRouter, vLLM, LM Studio)
     custom_api_key: str = ""
     custom_base_url: str = "https://api.openai.com/v1"
     custom_model: str = "gpt-4o"

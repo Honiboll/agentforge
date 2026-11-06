@@ -17,10 +17,11 @@ interface Props {
 }
 
 const PROVIDER_ICONS: Record<string, string> = {
-  ollama: "🦙",
   gemini: "💎",
+  groq: "⚡",
   openai: "🟢",
   anthropic: "🟠",
+  ollama: "🦙",
   custom: "🛠️",
 };
 
@@ -58,7 +59,7 @@ export function ProjectSetup({ onSubmit, loading }: Props) {
         setSmartSuccess(res.message || `Detected and activated for ${res.provider_label}!`);
         setSelectedProvider(res.provider);
         setSmartKey("");
-        fetchProviders(true);
+        fetchProviders(true, res.provider);
       } else {
         setSmartError(res.error || "Could not detect provider for this key");
       }
@@ -69,7 +70,7 @@ export function ProjectSetup({ onSubmit, loading }: Props) {
     }
   };
 
-  const fetchProviders = (isRefresh = false) => {
+  const fetchProviders = (isRefresh = false, overrideProvider?: string) => {
     if (isRefresh) setRefreshing(true);
     else setLoadingProviders(true);
 
@@ -77,7 +78,8 @@ export function ProjectSetup({ onSubmit, loading }: Props) {
       .then((data) => {
         setProviders(data);
         if (data.length > 0) {
-          const current = data.find((p) => p.name === selectedProvider) || data.find((p) => p.is_available) || data[0];
+          const target = overrideProvider || selectedProvider;
+          const current = data.find((p) => p.name === target) || data.find((p) => p.is_available) || data[0];
           setSelectedProvider(current.name);
           if (!useCustomModel) {
             setSelectedModel(current.default_model || current.models[0]?.id || "");
@@ -114,11 +116,11 @@ export function ProjectSetup({ onSubmit, loading }: Props) {
     setKeyError("");
     setKeySuccess("");
     try {
-      const res = await saveApiKey(selectedProvider, inlineKey.trim());
+      const res = await saveApiKey(selectedProvider, inlineKey.trim(), selectedProvider === "custom" ? customBaseUrl.trim() : undefined);
       if (res.success) {
         setKeySuccess(res.message || "Key saved and activated!");
         setInlineKey("");
-        fetchProviders(true);
+        fetchProviders(true, selectedProvider);
       } else {
         setKeyError(res.error || "Failed to save key");
       }
@@ -194,7 +196,7 @@ export function ProjectSetup({ onSubmit, loading }: Props) {
             </span>
           </div>
           <span className="text-[11px] text-[var(--text-muted)]">
-            Paste any key (Gemini, OpenAI, Claude)
+            Paste any key (Groq, Gemini, OpenAI, Claude)
           </span>
         </div>
 
@@ -209,7 +211,7 @@ export function ProjectSetup({ onSubmit, loading }: Props) {
                 handleAutoDetectKey();
               }
             }}
-            placeholder="Paste ANY API key here (e.g. AIzaSy..., sk-proj-..., sk-ant-...)..."
+            placeholder="Paste ANY API key here (e.g. gsk_..., AIzaSy..., sk-proj-..., sk-ant-...)..."
             className="flex-1 rounded-lg border border-[var(--border)] bg-black/50 px-3 py-2 text-xs text-white placeholder-gray-500 focus:border-brand-500 focus:outline-none transition-colors"
           />
           <button
@@ -362,10 +364,59 @@ export function ProjectSetup({ onSubmit, loading }: Props) {
           )}
 
           {currentProvider.name === "custom" && (
-            <div className="mt-3 rounded-lg border border-[var(--border)] bg-black/30 p-3 space-y-1.5">
-              <label className="block text-[11px] text-[var(--text-muted)] font-medium">
-                OpenAI-Compatible Base URL (e.g. <code>https://api.deepseek.com</code>, <code>https://openrouter.ai/api/v1</code>, <code>https://api.groq.com/openai/v1</code>):
-              </label>
+            <div className="mt-3 rounded-lg border border-[var(--border)] bg-black/30 p-3 space-y-2">
+              <div className="flex items-center justify-between">
+                <label className="block text-[11px] text-[var(--text-muted)] font-medium">
+                  OpenAI-Compatible Base URL:
+                </label>
+                <span className="text-[10px] text-gray-500">1-Click Presets:</span>
+              </div>
+              <div className="flex flex-wrap gap-1.5 pb-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCustomBaseUrl("https://api.groq.com/openai/v1");
+                    setCustomModel("llama-3.3-70b-versatile");
+                    setUseCustomModel(true);
+                  }}
+                  className="rounded bg-white/5 hover:bg-white/10 px-2 py-0.5 text-[10px] text-amber-300 border border-white/10 transition-colors"
+                >
+                  ⚡ Groq
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCustomBaseUrl("https://api.deepseek.com");
+                    setCustomModel("deepseek-chat");
+                    setUseCustomModel(true);
+                  }}
+                  className="rounded bg-white/5 hover:bg-white/10 px-2 py-0.5 text-[10px] text-blue-300 border border-white/10 transition-colors"
+                >
+                  🐋 DeepSeek
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCustomBaseUrl("https://openrouter.ai/api/v1");
+                    setCustomModel("meta-llama/llama-3.3-70b-instruct:free");
+                    setUseCustomModel(true);
+                  }}
+                  className="rounded bg-white/5 hover:bg-white/10 px-2 py-0.5 text-[10px] text-purple-300 border border-white/10 transition-colors"
+                >
+                  🌐 OpenRouter
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCustomBaseUrl("http://localhost:1234/v1");
+                    setCustomModel("local-model");
+                    setUseCustomModel(true);
+                  }}
+                  className="rounded bg-white/5 hover:bg-white/10 px-2 py-0.5 text-[10px] text-emerald-300 border border-white/10 transition-colors"
+                >
+                  💻 Local (LM Studio / vLLM)
+                </button>
+              </div>
               <input
                 type="text"
                 value={customBaseUrl}
