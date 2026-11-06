@@ -61,8 +61,8 @@ AgentForge is an open-source platform that **analyzes your requirements** and au
 ### Option 1: Docker (Recommended)
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/AgentForge.git
-cd AgentForge
+git clone https://github.com/Honiboll/agentforge.git
+cd agentforge
 cp .env.example .env
 # Edit .env with your LLM API key
 docker compose up
@@ -74,8 +74,8 @@ Open [http://localhost:3000](http://localhost:3000) 🎉
 
 ```bash
 # Clone
-git clone https://github.com/YOUR_USERNAME/AgentForge.git
-cd AgentForge
+git clone https://github.com/Honiboll/agentforge.git
+cd agentforge
 
 # Configure environment
 cp .env.example .env
@@ -205,7 +205,8 @@ We love contributions! See [CONTRIBUTING.md](docs/contributing.md) for guideline
 
 ```bash
 # Fork & clone
-git clone https://github.com/YOUR_USERNAME/AgentForge.git
+git clone https://github.com/Honiboll/agentforge.git
+cd agentforge
 
 # Create a branch
 git checkout -b feature/amazing-feature
