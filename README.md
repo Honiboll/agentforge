@@ -77,20 +77,70 @@ Open [http://localhost:3000](http://localhost:3000) 🎉
 git clone https://github.com/YOUR_USERNAME/AgentForge.git
 cd AgentForge
 
-# Backend
+# Configure environment
+cp .env.example .env
+
+# Backend setup & run
 cd backend
 python -m venv .venv
 source .venv/bin/activate  # Windows: .venv\Scripts\activate
 pip install -e ".[dev]"
 uvicorn agentforge.main:app --reload --port 8000
 
-# Frontend (new terminal)
+# Frontend setup & run (in a separate terminal)
 cd frontend
 npm install
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) 🎉
+Open [http://localhost:3000](http://localhost:3000) in your browser 🎉
+
+---
+
+## 📖 How to Use AgentForge
+
+### 1. Configure Your AI Provider
+Open your `.env` file and choose your model:
+
+* **Using Ollama (Local & Free, No API key needed):**
+  ```env
+  DEFAULT_LLM_PROVIDER=ollama
+  OLLAMA_BASE_URL=http://localhost:11434
+  OLLAMA_MODEL=llama3.2
+  ```
+* **Using Google Gemini:**
+  ```env
+  DEFAULT_LLM_PROVIDER=gemini
+  GEMINI_API_KEY=your_gemini_api_key
+  GEMINI_MODEL=gemini-2.0-flash
+  ```
+* **Using OpenAI:**
+  ```env
+  DEFAULT_LLM_PROVIDER=openai
+  OPENAI_API_KEY=sk-your_openai_key
+  OPENAI_MODEL=gpt-4o
+  ```
+
+### 2. Launch the Application
+- Visit **[http://localhost:3000](http://localhost:3000)** for the web dashboard.
+- Visit **[http://localhost:8000/docs](http://localhost:8000/docs)** for the interactive Swagger REST API documentation.
+
+### 3. Describe Your Project
+In the homepage input area:
+1. Type a description of what you want to achieve (e.g. *"Build a secure REST API in Python with JWT authentication, rate limiting, and PostgreSQL"*).
+2. Select your preferred LLM Provider (Ollama, OpenAI, Gemini, Anthropic).
+3. Click **Forge Agents 🔥**.
+
+### 4. Watch Agents Collaborate in Real-Time
+The platform automatically:
+1. **Analyzes & Plans**: Breaks down your request into ordered sub-tasks with dependencies.
+2. **Spawns Specialized Agents**: Creates instances of `Researcher`, `Coder`, `Reviewer`, `Planner`, or `Writer`.
+3. **Streams Execution**:
+   - 🟡 **Thinking**: Agent is analyzing or querying the model (interactive pulsing animation).
+   - 🔵 **Working**: Agent is writing code, generating documentation, or executing tasks.
+   - 🟢 **Done**: Task finished successfully with output logged.
+   - 📋 **Live Log**: Inspect individual console logs per agent in real time.
+   - ⏱️ **Timeline**: Track project events chronologically over WebSockets.
 
 ---
 

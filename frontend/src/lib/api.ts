@@ -1,5 +1,7 @@
 /** API client for the AgentForge backend. */
 
+import type { Project } from "./types";
+
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
@@ -24,11 +26,11 @@ export function createProject(user_request: string, provider?: string) {
 }
 
 export function listProjects() {
-  return request<Array<Record<string, string>>>("/api/projects/");
+  return request<Project[]>("/api/projects/");
 }
 
 export function getProject(id: string) {
-  return request<Record<string, unknown>>(`/api/projects/${id}`);
+  return request<Project>(`/api/projects/${id}`);
 }
 
 export function startProject(id: string) {
