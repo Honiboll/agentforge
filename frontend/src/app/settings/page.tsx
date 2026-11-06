@@ -8,10 +8,19 @@ import type { Provider } from "@/lib/types";
 export default function SettingsPage() {
   const [providers, setProviders] = useState<Provider[]>([]);
   const [testing, setTesting] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
   const [results, setResults] = useState<Record<string, { ok: boolean; msg: string }>>({});
 
+  const loadProviders = (isRefresh = false) => {
+    if (isRefresh) setRefreshing(true);
+    listProviders(isRefresh)
+      .then(setProviders)
+      .catch(() => {})
+      .finally(() => setRefreshing(false));
+  };
+
   useEffect(() => {
-    listProviders().then(setProviders).catch(() => {});
+    loadProviders(false);
   }, []);
 
   const handleTest = async (name: string) => {
@@ -34,11 +43,20 @@ export default function SettingsPage() {
 
   return (
     <div className="max-w-2xl mx-auto space-y-8">
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-        <h1 className="text-2xl font-bold text-white">⚙️ Settings</h1>
-        <p className="text-sm text-[var(--text-muted)] mt-1">
-          Configure your LLM providers. Set API keys in your <code>.env</code> file.
-        </p>
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-white">⚙️ Settings</h1>
+          <p className="text-sm text-[var(--text-muted)] mt-1">
+            Configure your LLM providers. Set API keys in your <code>.env</code> file.
+          </p>
+        </div>
+        <button
+          onClick={() => loadProviders(true)}
+          disabled={refreshing}
+          className="rounded-lg border border-[var(--border)] px-3 py-1.5 text-xs font-medium text-brand-400 hover:text-white hover:border-brand-500 transition-all disabled:opacity-40"
+        >
+          {refreshing ? "Scanning APIs…" : "🔄 Check for New Models"}
+        </button>
       </motion.div>
 
       <div className="space-y-4">

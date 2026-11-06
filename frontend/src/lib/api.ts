@@ -49,8 +49,8 @@ export function listAgentTypes() {
 
 // --- Providers ---
 
-export function listProviders() {
-  return request<Provider[]>("/api/providers/");
+export function listProviders(refresh = false) {
+  return request<Provider[]>(`/api/providers/${refresh ? "?refresh=true" : ""}`);
 }
 
 export function testProvider(provider: string, model?: string) {

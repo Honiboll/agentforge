@@ -20,23 +20,37 @@ const PROVIDER_ICONS: Record<string, string> = {
 export function ProjectSetup({ onSubmit, loading }: Props) {
   const [request, setRequest] = useState("");
   const [providers, setProviders] = useState<Provider[]>([]);
-  const [selectedProvider, setSelectedProvider] = useState<string>("ollama");
+  const [selectedProvider, setSelectedProvider] = useState<string>("gemini");
   const [selectedModel, setSelectedModel] = useState<string>("");
+  const [customModel, setCustomModel] = useState<string>("");
+  const [useCustomModel, setUseCustomModel] = useState<boolean>(false);
   const [loadingProviders, setLoadingProviders] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
-  useEffect(() => {
-    listProviders()
+  const fetchProviders = (isRefresh = false) => {
+    if (isRefresh) setRefreshing(true);
+    else setLoadingProviders(true);
+
+    listProviders(isRefresh)
       .then((data) => {
         setProviders(data);
         if (data.length > 0) {
-          // Prefer first ready provider, or fallback to first
-          const ready = data.find((p) => p.is_available) || data[0];
-          setSelectedProvider(ready.name);
-          setSelectedModel(ready.default_model || ready.models[0]?.id || "");
+          const current = data.find((p) => p.name === selectedProvider) || data.find((p) => p.is_available) || data[0];
+          setSelectedProvider(current.name);
+          if (!useCustomModel) {
+            setSelectedModel(current.default_model || current.models[0]?.id || "");
+          }
         }
       })
       .catch(() => {})
-      .finally(() => setLoadingProviders(false));
+      .finally(() => {
+        setLoadingProviders(false);
+        setRefreshing(false);
+      });
+  };
+
+  useEffect(() => {
+    fetchProviders(false);
   }, []);
 
   const currentProvider = providers.find((p) => p.name === selectedProvider);
@@ -44,7 +58,7 @@ export function ProjectSetup({ onSubmit, loading }: Props) {
   const handleProviderChange = (providerName: string) => {
     setSelectedProvider(providerName);
     const p = providers.find((item) => item.name === providerName);
-    if (p && p.models.length > 0) {
+    if (p && p.models.length > 0 && !useCustomModel) {
       setSelectedModel(p.default_model || p.models[0].id);
     }
   };
@@ -52,7 +66,8 @@ export function ProjectSetup({ onSubmit, loading }: Props) {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (request.trim()) {
-      onSubmit(request.trim(), selectedProvider, selectedModel);
+      const finalModel = useCustomModel && customModel.trim() ? customModel.trim() : selectedModel;
+      onSubmit(request.trim(), selectedProvider, finalModel);
     }
   };
 
@@ -134,51 +149,81 @@ export function ProjectSetup({ onSubmit, loading }: Props) {
       </div>
 
       {/* Individual Model Selector */}
-      {currentProvider && currentProvider.models.length > 0 && (
+      {currentProvider && (
         <motion.div
           layout
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="space-y-2 rounded-xl border border-[var(--border)] bg-[var(--bg-card)]/60 p-4"
+          className="space-y-3 rounded-xl border border-[var(--border)] bg-[var(--bg-card)]/60 p-4"
         >
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-white">
-              Select Specific Model for {currentProvider.label}:
-            </span>
-            <span className="text-[11px] text-[var(--text-muted)]">
-              {currentProvider.models.length} models available
-            </span>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-semibold text-white">
+                Select Model for {currentProvider.label}:
+              </span>
+              <button
+                type="button"
+                onClick={() => fetchProviders(true)}
+                disabled={refreshing}
+                title="Check for newly released models from API"
+                className="inline-flex items-center gap-1 rounded bg-white/5 hover:bg-white/10 px-2 py-0.5 text-[10px] text-[var(--text-muted)] hover:text-white transition-all disabled:opacity-40"
+              >
+                <span>{refreshing ? "⏳ Scanning APIs…" : "🔄 Check for New Models"}</span>
+              </button>
+            </div>
+            <button
+              type="button"
+              onClick={() => setUseCustomModel(!useCustomModel)}
+              className="text-[11px] text-brand-400 hover:underline"
+            >
+              {useCustomModel ? "← Pick from List" : "✏️ Custom Model Name"}
+            </button>
           </div>
 
-          <div className="grid gap-2 sm:grid-cols-2">
-            {currentProvider.models.map((m: ModelOption) => {
-              const isModelSelected = selectedModel === m.id;
-              return (
-                <button
-                  key={m.id}
-                  type="button"
-                  onClick={() => setSelectedModel(m.id)}
-                  className={`flex flex-col items-start rounded-lg border p-2.5 text-left transition-all ${
-                    isModelSelected
-                      ? "border-brand-500 bg-brand-500/15 text-white ring-1 ring-brand-500/40"
-                      : "border-[var(--border)] bg-black/20 text-[var(--text-muted)] hover:border-gray-500 hover:text-white"
-                  }`}
-                >
-                  <div className="flex w-full items-center justify-between">
-                    <span className="text-xs font-semibold text-white">{m.name}</span>
-                    <code className="text-[10px] text-brand-400">{m.id}</code>
-                  </div>
-                  <p className="mt-1 text-[11px] text-[var(--text-muted)] line-clamp-1">
-                    {m.description}
-                  </p>
-                </button>
-              );
-            })}
-          </div>
+          {useCustomModel ? (
+            <div className="space-y-1.5 pt-1">
+              <label className="block text-[11px] text-[var(--text-muted)]">
+                Enter any newly released model identifier (e.g. <code>gemini-2.5-flash</code>, <code>o3-mini</code>, <code>deepseek-v3</code>):
+              </label>
+              <input
+                type="text"
+                value={customModel}
+                onChange={(e) => setCustomModel(e.target.value)}
+                placeholder="e.g. gemini-2.0-flash or gpt-4o-mini"
+                className="w-full rounded-lg border border-[var(--border)] bg-black/40 px-3 py-2 text-xs text-white placeholder-gray-600 focus:border-brand-500 focus:outline-none"
+              />
+            </div>
+          ) : (
+            <div className="grid gap-2 sm:grid-cols-2 max-h-56 overflow-y-auto pr-1">
+              {currentProvider.models.map((m: ModelOption) => {
+                const isModelSelected = selectedModel === m.id;
+                return (
+                  <button
+                    key={m.id}
+                    type="button"
+                    onClick={() => setSelectedModel(m.id)}
+                    className={`flex flex-col items-start rounded-lg border p-2.5 text-left transition-all ${
+                      isModelSelected
+                        ? "border-brand-500 bg-brand-500/15 text-white ring-1 ring-brand-500/40"
+                        : "border-[var(--border)] bg-black/20 text-[var(--text-muted)] hover:border-gray-500 hover:text-white"
+                    }`}
+                  >
+                    <div className="flex w-full items-center justify-between">
+                      <span className="text-xs font-semibold text-white">{m.name}</span>
+                      <code className="text-[10px] text-brand-400">{m.id}</code>
+                    </div>
+                    <p className="mt-1 text-[11px] text-[var(--text-muted)] line-clamp-1">
+                      {m.description}
+                    </p>
+                  </button>
+                );
+              })}
+            </div>
+          )}
 
           {!currentProvider.is_available && currentProvider.requires_key && (
             <p className="mt-2 text-[11px] text-amber-400 bg-amber-500/10 border border-amber-500/20 rounded-lg p-2">
-              💡 <strong>API Key missing:</strong> To use this provider, add your key to <code>.env</code> file (e.g. <code>{currentProvider.name.toUpperCase()}_API_KEY=...</code>).
+              💡 <strong>API Key missing:</strong> Add your key to <code>.env</code> file (e.g. <code>{currentProvider.name.toUpperCase()}_API_KEY=...</code>) to unlock live models.
             </p>
           )}
         </motion.div>
@@ -194,7 +239,9 @@ export function ProjectSetup({ onSubmit, loading }: Props) {
                    shadow-lg shadow-brand-600/20 transition-all hover:bg-brand-500
                    disabled:opacity-40 disabled:cursor-not-allowed"
       >
-        {loading ? "Forging Agents…" : `🔥 Forge Agents with ${selectedModel || selectedProvider}`}
+        {loading
+          ? "Forging Agents…"
+          : `🔥 Forge Agents with ${useCustomModel && customModel ? customModel : selectedModel || selectedProvider}`}
       </motion.button>
     </motion.form>
   );
