@@ -29,6 +29,7 @@ _running: dict[str, asyncio.Task[Any]] = {}
 class ProjectCreate(BaseModel):
     user_request: str
     provider: str = ""
+    model: str = ""
 
 
 class ProjectOut(BaseModel):
@@ -37,6 +38,7 @@ class ProjectOut(BaseModel):
     user_request: str
     status: str
     provider_name: str
+    model_name: str | None = None
     created_at: str
 
 
@@ -47,10 +49,12 @@ async def create_project(
 ) -> dict[str, Any]:
     project_id = uuid.uuid4().hex
     provider_name = body.provider or settings.default_llm_provider
+    model_name = body.model.strip() if body.model else None
     project = ProjectModel(
         id=project_id,
         user_request=body.user_request,
         provider_name=provider_name,
+        model_name=model_name,
         status="pending",
     )
     session.add(project)
@@ -62,6 +66,7 @@ async def create_project(
         "user_request": project.user_request,
         "status": project.status,
         "provider_name": project.provider_name,
+        "model_name": project.model_name,
         "created_at": project.created_at.isoformat(),
     }
 
@@ -77,6 +82,7 @@ async def list_projects(session: AsyncSession = Depends(get_session)) -> list[di
             "user_request": p.user_request,
             "status": p.status,
             "provider_name": p.provider_name,
+            "model_name": p.model_name,
             "created_at": p.created_at.isoformat(),
         }
         for p in projects
@@ -97,6 +103,7 @@ async def get_project(
         "user_request": project.user_request,
         "status": project.status,
         "provider_name": project.provider_name,
+        "model_name": project.model_name,
         "created_at": project.created_at.isoformat(),
     }
 
@@ -115,7 +122,7 @@ async def start_project(
     project.status = "running"
     await session.commit()
 
-    provider = create_provider(project.provider_name, settings)
+    provider = create_provider(project.provider_name, settings, model=project.model_name)
     orchestrator = Orchestrator(provider=provider)
 
     async def _run() -> None:

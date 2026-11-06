@@ -51,9 +51,24 @@ export default function SettingsPage() {
           >
             <div className="flex items-center justify-between">
               <div>
-                <h3 className="font-semibold text-white">{p.label}</h3>
-                <p className="text-xs text-[var(--text-muted)]">
-                  {p.requires_key ? "Requires API key in .env" : "No API key needed"}
+                <div className="flex items-center gap-2">
+                  <h3 className="font-semibold text-white">{p.label}</h3>
+                  {p.is_available ? (
+                    <span className="rounded-full bg-green-500/15 px-2 py-0.5 text-[10px] font-medium text-green-400 border border-green-500/30">
+                      Ready
+                    </span>
+                  ) : p.requires_key && !p.has_key ? (
+                    <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-medium text-amber-400 border border-amber-500/30">
+                      Key Missing in .env
+                    </span>
+                  ) : (
+                    <span className="rounded-full bg-gray-500/15 px-2 py-0.5 text-[10px] font-medium text-gray-400 border border-gray-500/30">
+                      Daemon Offline
+                    </span>
+                  )}
+                </div>
+                <p className="text-xs text-[var(--text-muted)] mt-1">
+                  Default: <code>{p.default_model}</code>
                 </p>
               </div>
               <button
@@ -66,6 +81,24 @@ export default function SettingsPage() {
                 {testing === p.name ? "Testing…" : "Test Connection"}
               </button>
             </div>
+
+            {/* Models list */}
+            {p.models && p.models.length > 0 && (
+              <div className="mt-3 pt-3 border-t border-[var(--border)]">
+                <span className="text-[11px] font-medium text-[var(--text-muted)]">Supported Models:</span>
+                <div className="mt-1.5 flex flex-wrap gap-1.5">
+                  {p.models.map((m) => (
+                    <span
+                      key={m.id}
+                      className="rounded bg-black/40 border border-[var(--border)] px-2 py-0.5 text-[10px] text-gray-300"
+                      title={m.description}
+                    >
+                      {m.id}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
             {results[p.name] && (
               <div
                 className={`mt-3 rounded-lg p-3 text-xs ${

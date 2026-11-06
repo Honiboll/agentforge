@@ -18,6 +18,7 @@ class ProjectModel(Base):
     user_request: Mapped[str] = mapped_column(Text, nullable=False)
     status: Mapped[str] = mapped_column(String(32), default="pending")
     provider_name: Mapped[str] = mapped_column(String(32), default="ollama")
+    model_name: Mapped[str | None] = mapped_column(String(64), nullable=True)
     result: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)

@@ -36,11 +36,11 @@ export default function Home() {
     fetchProjects();
   }, []);
 
-  const handleSubmit = async (request: string, provider: string) => {
+  const handleSubmit = async (request: string, provider: string, model: string) => {
     setLoading(true);
     setError("");
     try {
-      const project = await createProject(request, provider);
+      const project = await createProject(request, provider, model);
       await startProject(project.id);
       router.push(`/project/${project.id}`);
     } catch (e: unknown) {

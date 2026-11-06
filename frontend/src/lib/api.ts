@@ -1,6 +1,6 @@
 /** API client for the AgentForge backend. */
 
-import type { Project } from "./types";
+import type { Project, Provider } from "./types";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
@@ -18,10 +18,10 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 
 // --- Projects ---
 
-export function createProject(user_request: string, provider?: string) {
+export function createProject(user_request: string, provider?: string, model?: string) {
   return request<{ id: string }>("/api/projects/", {
     method: "POST",
-    body: JSON.stringify({ user_request, provider }),
+    body: JSON.stringify({ user_request, provider, model }),
   });
 }
 
@@ -50,13 +50,13 @@ export function listAgentTypes() {
 // --- Providers ---
 
 export function listProviders() {
-  return request<Array<{ name: string; label: string; requires_key: boolean }>>("/api/providers/");
+  return request<Provider[]>("/api/providers/");
 }
 
-export function testProvider(provider: string) {
+export function testProvider(provider: string, model?: string) {
   return request<{ success: boolean; response?: string; error?: string }>("/api/providers/test", {
     method: "POST",
-    body: JSON.stringify({ provider }),
+    body: JSON.stringify({ provider, model }),
   });
 }
 

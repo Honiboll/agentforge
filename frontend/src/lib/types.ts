@@ -25,6 +25,7 @@ export interface Project {
   user_request: string;
   status: string;
   provider_name: string;
+  model_name?: string;
   created_at: string;
 }
 
@@ -35,9 +36,19 @@ export interface WSEvent {
   timestamp: string;
 }
 
+export interface ModelOption {
+  id: string;
+  name: string;
+  description: string;
+}
+
 export interface Provider {
   name: string;
   label: string;
+  is_available: boolean;
   requires_key: boolean;
+  has_key: boolean;
+  default_model: string;
+  models: ModelOption[];
 }
 
