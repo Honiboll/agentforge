@@ -105,11 +105,27 @@ AgentForge is flexible and works with both local and cloud models. You only need
 
 ## ⚡ Quick Start
 
-> ⚠️ **IMPORTANT SECURITY RULE:** Never put real API keys in `.env.example`! Always copy it to `.env` and put your secret keys inside `.env`. The `.env` file is permanently ignored by Git and stays safe on your local computer.
+### 🚀 1-Click / One-Command Startup (Recommended!)
 
-Choose the setup guide for your operating system below:
+We provide instant launcher scripts that automatically set up dependencies, launch both backend and frontend, and open your browser:
+
+* **🪟 Windows Users:**  
+  Just **double-click [`run.bat`](run.bat)** in File Explorer (or run `run.bat` in CMD / PowerShell)!
+* **🍎 macOS & 🐧 Linux Users:**  
+  Open Terminal and run:  
+  ```bash
+  ./run.sh
+  ```
+* **🐍 Any System with Python:**  
+  Run in terminal:  
+  ```bash
+  python run.py
+  ```
+*(These scripts automatically handle `.env` creation, dependency checks, launch both servers, and open `http://localhost:3000` in your default browser).*
 
 ---
+
+### 🛠️ Manual Terminal-by-Terminal Setup (Optional)
 
 ### 🪟 Windows Setup Guide (Command Prompt or PowerShell)
 
