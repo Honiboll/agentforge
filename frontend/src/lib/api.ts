@@ -60,3 +60,10 @@ export function testProvider(provider: string, model?: string) {
   });
 }
 
+export function saveApiKey(provider: string, api_key: string) {
+  return request<{ success: boolean; message?: string; error?: string }>("/api/providers/key", {
+    method: "POST",
+    body: JSON.stringify({ provider, api_key }),
+  });
+}
+

@@ -2,12 +2,52 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+REPO_ROOT = Path(__file__).resolve().parent.parent.parent
+
+
+def find_env_file() -> Path:
+    candidates = [
+        Path(".env"),
+        Path("../.env"),
+        REPO_ROOT / ".env",
+        Path.cwd() / ".env",
+    ]
+    for c in candidates:
+        if c.is_file():
+            return c.resolve()
+    return (REPO_ROOT / ".env").resolve()
+
+
+def save_key_to_env(key_name: str, key_val: str) -> Path:
+    """Save or update an API key in the discovered .env file."""
+    env_path = find_env_file()
+    lines: list[str] = []
+    if env_path.is_file():
+        lines = env_path.read_text(encoding="utf-8").splitlines()
+
+    updated = False
+    new_lines: list[str] = []
+    for line in lines:
+        stripped = line.strip()
+        if stripped.startswith(f"{key_name}=") or stripped.startswith(f"# {key_name}="):
+            new_lines.append(f"{key_name}={key_val}")
+            updated = True
+        else:
+            new_lines.append(line)
+
+    if not updated:
+        new_lines.append(f"{key_name}={key_val}")
+
+    env_path.write_text("\n".join(new_lines) + "\n", encoding="utf-8")
+    return env_path
 
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=(".env", "../.env", str(REPO_ROOT / ".env")),
         env_file_encoding="utf-8",
         extra="ignore",
     )

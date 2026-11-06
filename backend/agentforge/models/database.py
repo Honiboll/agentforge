@@ -7,7 +7,11 @@ from sqlalchemy.orm import DeclarativeBase
 
 from agentforge.config import settings
 
-engine = create_async_engine(settings.database_url, echo=False)
+db_url = settings.database_url
+if db_url.startswith("sqlite:///") and not db_url.startswith("sqlite+aiosqlite:///"):
+    db_url = db_url.replace("sqlite:///", "sqlite+aiosqlite:///")
+
+engine = create_async_engine(db_url, echo=False)
 async_session = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
 

@@ -285,6 +285,55 @@ async def list_providers(refresh: bool = False) -> list[dict[str, Any]]:
     ]
 
 
+class SaveKeyRequest(BaseModel):
+    provider: str
+    api_key: str
+
+
+@router.post("/key")
+async def save_api_key(body: SaveKeyRequest) -> dict[str, Any]:
+    """Save an API key directly from UI, update in-memory settings, and persist to .env."""
+    provider_name = body.provider.lower().strip()
+    key_val = body.api_key.strip()
+
+    if not key_val:
+        return {"success": False, "error": "API key cannot be empty"}
+
+    key_map = {
+        "gemini": "GEMINI_API_KEY",
+        "openai": "OPENAI_API_KEY",
+        "anthropic": "ANTHROPIC_API_KEY",
+    }
+
+    if provider_name not in key_map:
+        return {"success": False, "error": f"Unknown provider: {provider_name}"}
+
+    env_var_name = key_map[provider_name]
+
+    # 1. Update in-memory settings immediately
+    if provider_name == "gemini":
+        settings.gemini_api_key = key_val
+    elif provider_name == "openai":
+        settings.openai_api_key = key_val
+    elif provider_name == "anthropic":
+        settings.anthropic_api_key = key_val
+
+    # 2. Invalidate model cache so fresh models are fetched right away
+    _model_cache.pop(provider_name, None)
+
+    # 3. Persist to .env file on disk
+    from agentforge.config import save_key_to_env
+    env_file = save_key_to_env(env_var_name, key_val)
+
+    logger.info("Saved %s to %s via web UI", env_var_name, env_file)
+
+    return {
+        "success": True,
+        "message": f"{provider_name.capitalize()} key saved and activated!",
+        "provider": provider_name,
+    }
+
+
 class ProviderTest(BaseModel):
     provider: str
     model: str = ""

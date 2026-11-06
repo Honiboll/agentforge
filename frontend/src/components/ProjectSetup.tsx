@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { listProviders } from "@/lib/api";
+import { listProviders, saveApiKey } from "@/lib/api";
 import type { Provider, ModelOption } from "@/lib/types";
 
 interface Props {
@@ -26,6 +26,12 @@ export function ProjectSetup({ onSubmit, loading }: Props) {
   const [useCustomModel, setUseCustomModel] = useState<boolean>(false);
   const [loadingProviders, setLoadingProviders] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+
+  // Direct UI key input
+  const [inlineKey, setInlineKey] = useState("");
+  const [savingKey, setSavingKey] = useState(false);
+  const [keySuccess, setKeySuccess] = useState("");
+  const [keyError, setKeyError] = useState("");
 
   const fetchProviders = (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
@@ -57,9 +63,33 @@ export function ProjectSetup({ onSubmit, loading }: Props) {
 
   const handleProviderChange = (providerName: string) => {
     setSelectedProvider(providerName);
+    setInlineKey("");
+    setKeySuccess("");
+    setKeyError("");
     const p = providers.find((item) => item.name === providerName);
     if (p && p.models.length > 0 && !useCustomModel) {
       setSelectedModel(p.default_model || p.models[0].id);
+    }
+  };
+
+  const handleSaveKey = async () => {
+    if (!inlineKey.trim()) return;
+    setSavingKey(true);
+    setKeyError("");
+    setKeySuccess("");
+    try {
+      const res = await saveApiKey(selectedProvider, inlineKey.trim());
+      if (res.success) {
+        setKeySuccess(res.message || "Key saved and activated!");
+        setInlineKey("");
+        fetchProviders(true);
+      } else {
+        setKeyError(res.error || "Failed to save key");
+      }
+    } catch (err: unknown) {
+      setKeyError(err instanceof Error ? err.message : "Error saving key");
+    } finally {
+      setSavingKey(false);
     }
   };
 
@@ -221,10 +251,53 @@ export function ProjectSetup({ onSubmit, loading }: Props) {
             </div>
           )}
 
-          {!currentProvider.is_available && currentProvider.requires_key && (
-            <p className="mt-2 text-[11px] text-amber-400 bg-amber-500/10 border border-amber-500/20 rounded-lg p-2">
-              💡 <strong>API Key missing:</strong> Add your key to <code>.env</code> file (e.g. <code>{currentProvider.name.toUpperCase()}_API_KEY=...</code>) to unlock live models.
-            </p>
+          {currentProvider.requires_key && (
+            <div className="mt-3 rounded-lg border border-[var(--border)] bg-black/30 p-3 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-medium text-white flex items-center gap-1.5">
+                  <span>🔑</span>
+                  <span>
+                    {currentProvider.has_key
+                      ? `${currentProvider.label} API Key Configured`
+                      : `Enter ${currentProvider.label} API Key:`}
+                  </span>
+                </span>
+                {currentProvider.has_key ? (
+                  <span className="text-[10px] text-green-400 bg-green-500/10 border border-green-500/20 rounded px-1.5 py-0.5">
+                    ✓ Active
+                  </span>
+                ) : (
+                  <span className="text-[10px] text-amber-400 bg-amber-500/10 border border-amber-500/20 rounded px-1.5 py-0.5">
+                    Key Required
+                  </span>
+                )}
+              </div>
+
+              <div className="flex gap-2">
+                <input
+                  type="password"
+                  value={inlineKey}
+                  onChange={(e) => setInlineKey(e.target.value)}
+                  placeholder={
+                    currentProvider.has_key
+                      ? "Paste new key to replace existing..."
+                      : `Paste your ${currentProvider.label} API key here...`
+                  }
+                  className="flex-1 rounded-lg border border-[var(--border)] bg-black/40 px-3 py-1.5 text-xs text-white placeholder-gray-600 focus:border-brand-500 focus:outline-none"
+                />
+                <button
+                  type="button"
+                  onClick={handleSaveKey}
+                  disabled={!inlineKey.trim() || savingKey}
+                  className="rounded-lg bg-brand-600 hover:bg-brand-500 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-40 transition-colors shrink-0 shadow-sm"
+                >
+                  {savingKey ? "Saving…" : "Save & Activate"}
+                </button>
+              </div>
+
+              {keySuccess && <p className="text-[11px] text-green-400">✅ {keySuccess}</p>}
+              {keyError && <p className="text-[11px] text-red-400">❌ {keyError}</p>}
+            </div>
           )}
         </motion.div>
       )}

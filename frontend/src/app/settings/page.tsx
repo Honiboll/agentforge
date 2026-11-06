@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { listProviders, testProvider } from "@/lib/api";
+import { listProviders, saveApiKey, testProvider } from "@/lib/api";
 import type { Provider } from "@/lib/types";
 
 export default function SettingsPage() {
@@ -10,6 +10,9 @@ export default function SettingsPage() {
   const [testing, setTesting] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [results, setResults] = useState<Record<string, { ok: boolean; msg: string }>>({});
+  const [keys, setKeys] = useState<Record<string, string>>({});
+  const [savingKey, setSavingKey] = useState<string | null>(null);
+  const [keyNotifs, setKeyNotifs] = useState<Record<string, string>>({});
 
   const loadProviders = (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
@@ -22,6 +25,26 @@ export default function SettingsPage() {
   useEffect(() => {
     loadProviders(false);
   }, []);
+
+  const handleSaveKey = async (name: string) => {
+    const val = keys[name]?.trim();
+    if (!val) return;
+    setSavingKey(name);
+    try {
+      const res = await saveApiKey(name, val);
+      if (res.success) {
+        setKeyNotifs((prev) => ({ ...prev, [name]: res.message || "Key saved successfully!" }));
+        setKeys((prev) => ({ ...prev, [name]: "" }));
+        loadProviders(true);
+      } else {
+        setKeyNotifs((prev) => ({ ...prev, [name]: res.error || "Failed to save key" }));
+      }
+    } catch (e: unknown) {
+      setKeyNotifs((prev) => ({ ...prev, [name]: e instanceof Error ? e.message : "Error saving key" }));
+    } finally {
+      setSavingKey(null);
+    }
+  };
 
   const handleTest = async (name: string) => {
     setTesting(name);
@@ -99,6 +122,38 @@ export default function SettingsPage() {
                 {testing === p.name ? "Testing…" : "Test Connection"}
               </button>
             </div>
+
+            {/* Key Input Section */}
+            {p.requires_key && (
+              <div className="mt-3 pt-3 border-t border-[var(--border)] space-y-2">
+                <span className="text-[11px] font-medium text-[var(--text-muted)]">
+                  {p.has_key ? "Update API Key:" : "Enter API Key:"}
+                </span>
+                <div className="flex gap-2">
+                  <input
+                    type="password"
+                    placeholder={
+                      p.has_key
+                        ? "Key is configured. Paste new key to replace..."
+                        : `Paste ${p.label} API key here...`
+                    }
+                    value={keys[p.name] || ""}
+                    onChange={(e) => setKeys({ ...keys, [p.name]: e.target.value })}
+                    className="flex-1 rounded-lg border border-[var(--border)] bg-black/40 px-3 py-1.5 text-xs text-white placeholder-gray-600 focus:border-brand-500 focus:outline-none"
+                  />
+                  <button
+                    onClick={() => handleSaveKey(p.name)}
+                    disabled={!keys[p.name]?.trim() || savingKey === p.name}
+                    className="rounded-lg bg-brand-600 hover:bg-brand-500 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-40 transition-colors shrink-0"
+                  >
+                    {savingKey === p.name ? "Saving…" : "Save Key"}
+                  </button>
+                </div>
+                {keyNotifs[p.name] && (
+                  <p className="text-[11px] text-brand-400">{keyNotifs[p.name]}</p>
+                )}
+              </div>
+            )}
 
             {/* Models list */}
             {p.models && p.models.length > 0 && (
