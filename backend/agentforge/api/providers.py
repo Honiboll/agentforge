@@ -53,6 +53,12 @@ DEFAULT_MODELS: dict[str, list[dict[str, str]]] = {
         {"id": "llama-3.1-8b-instant", "name": "Llama 3.1 8B Instant", "description": "Blazing fast 800+ tokens/sec response time"},
         {"id": "mixtral-8x7b-32768", "name": "Mixtral 8x7B", "description": "Fast mixture-of-experts 32k context"},
     ],
+    "xai": [
+        {"id": "grok-2-latest", "name": "Grok 2 Latest", "description": "Flagship multimodal & reasoning model by xAI (Recommended)"},
+        {"id": "grok-2", "name": "Grok 2", "description": "State-of-the-art Grok 2 reasoning"},
+        {"id": "grok-beta", "name": "Grok Beta", "description": "High-performance Grok beta intelligence"},
+        {"id": "grok-2-vision-1212", "name": "Grok 2 Vision", "description": "Multimodal vision & document analysis"},
+    ],
     "anthropic": [
         {"id": "claude-sonnet-4-20250514", "name": "Claude Sonnet 4", "description": "Next-gen code and agentic reasoning"},
         {"id": "claude-3-5-sonnet-20241022", "name": "Claude 3.5 Sonnet", "description": "Industry leading coding and tool use"},
@@ -250,6 +256,50 @@ async def _fetch_groq_models(api_key: str) -> list[ModelOption]:
     return [ModelOption(**m) for m in DEFAULT_MODELS["groq"]]
 
 
+async def _fetch_xai_models(api_key: str) -> list[ModelOption]:
+    """Dynamically query xAI Grok API to discover available models."""
+    if not api_key:
+        return [ModelOption(**m) for m in DEFAULT_MODELS["xai"]]
+
+    now = time.time()
+    if "xai" in _model_cache and (now - _model_cache["xai"][0]) < CACHE_TTL:
+        return _model_cache["xai"][1]
+
+    try:
+        async with httpx.AsyncClient(timeout=4.0) as client:
+            resp = await client.get(
+                "https://api.x.ai/v1/models",
+                headers={"Authorization": f"Bearer {api_key}"},
+            )
+            if resp.status_code == 200:
+                data = resp.json()
+                items = data.get("data", [])
+                valid_ids: list[str] = []
+                for item in items:
+                    mid = item.get("id", "")
+                    if "grok" in mid.lower() and not any(x in mid.lower() for x in ["embedding"]):
+                        valid_ids.append(mid)
+
+                if valid_ids:
+                    priority_order = ["grok-2-latest", "grok-2", "grok-beta", "grok-2-vision-1212"]
+                    valid_ids.sort(key=lambda x: priority_order.index(x) if x in priority_order else 99)
+
+                    discovered = [
+                        ModelOption(
+                            id=mid,
+                            name=mid.replace("-", " ").title(),
+                            description=f"xAI Grok model: {mid}",
+                        )
+                        for mid in valid_ids
+                    ]
+                    _model_cache["xai"] = (now, discovered)
+                    return discovered
+    except Exception as exc:
+        logger.warning("Could not dynamically fetch xAI Grok models: %s", exc)
+
+    return [ModelOption(**m) for m in DEFAULT_MODELS["xai"]]
+
+
 async def _fetch_anthropic_models(api_key: str) -> list[ModelOption]:
     """Dynamically query Anthropic API to discover newly released models."""
     if not api_key:
@@ -294,20 +344,23 @@ async def list_providers(refresh: bool = False) -> list[dict[str, Any]]:
         _model_cache.clear()
 
     has_gemini = bool(settings.gemini_api_key and settings.gemini_api_key.strip())
+    has_xai = bool(settings.xai_api_key and settings.xai_api_key.strip()) or bool(settings.groq_api_key and settings.groq_api_key.startswith("xai-"))
+    has_groq = bool(settings.groq_api_key and settings.groq_api_key.strip() and not settings.groq_api_key.startswith("xai-"))
     has_openai = bool(settings.openai_api_key and settings.openai_api_key.strip())
-    has_groq = bool(settings.groq_api_key and settings.groq_api_key.strip())
     has_anthropic = bool(settings.anthropic_api_key and settings.anthropic_api_key.strip())
 
     # Probe all providers concurrently
     import asyncio
+    xai_key_to_use = settings.xai_api_key or (settings.groq_api_key if settings.groq_api_key.startswith("xai-") else "")
     ollama_task = _probe_ollama_models()
     gemini_task = _fetch_gemini_models(settings.gemini_api_key)
+    xai_task = _fetch_xai_models(xai_key_to_use)
+    groq_task = _fetch_groq_models(settings.groq_api_key if not settings.groq_api_key.startswith("xai-") else "")
     openai_task = _fetch_openai_models(settings.openai_api_key)
-    groq_task = _fetch_groq_models(settings.groq_api_key)
     anthropic_task = _fetch_anthropic_models(settings.anthropic_api_key)
 
-    (ollama_online, ollama_models), gemini_models, openai_models, groq_models, anthropic_models = await asyncio.gather(
-        ollama_task, gemini_task, openai_task, groq_task, anthropic_task
+    (ollama_online, ollama_models), gemini_models, xai_models, groq_models, openai_models, anthropic_models = await asyncio.gather(
+        ollama_task, gemini_task, xai_task, groq_task, openai_task, anthropic_task
     )
 
     return [
@@ -319,6 +372,15 @@ async def list_providers(refresh: bool = False) -> list[dict[str, Any]]:
             "has_key": has_gemini,
             "default_model": settings.gemini_model,
             "models": gemini_models,
+        },
+        {
+            "name": "xai",
+            "label": "xAI Grok",
+            "is_available": has_xai,
+            "requires_key": True,
+            "has_key": has_xai,
+            "default_model": settings.xai_model,
+            "models": xai_models,
         },
         {
             "name": "groq",
@@ -383,8 +445,15 @@ async def save_api_key(body: SaveKeyRequest) -> dict[str, Any]:
     if not key_val:
         return {"success": False, "error": "API key cannot be empty"}
 
+    # Auto-reroute if key prefix does not match provider selected
+    if key_val.startswith("xai-") and provider_name in ("groq", "openai"):
+        provider_name = "xai"
+    elif key_val.startswith("gsk_") and provider_name in ("xai", "openai"):
+        provider_name = "groq"
+
     key_map = {
         "gemini": "GEMINI_API_KEY",
+        "xai": "XAI_API_KEY",
         "groq": "GROQ_API_KEY",
         "openai": "OPENAI_API_KEY",
         "anthropic": "ANTHROPIC_API_KEY",
@@ -399,6 +468,10 @@ async def save_api_key(body: SaveKeyRequest) -> dict[str, Any]:
     # 1. Update in-memory settings immediately
     if provider_name == "gemini":
         settings.gemini_api_key = key_val
+    elif provider_name == "xai":
+        settings.xai_api_key = key_val
+        if settings.groq_api_key.startswith("xai-"):
+            settings.groq_api_key = ""
     elif provider_name == "groq":
         settings.groq_api_key = key_val
     elif provider_name == "openai":
@@ -486,7 +559,29 @@ async def auto_detect_and_save_key(body: DetectKeyRequest) -> dict[str, Any]:
             return True, ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-pro"]
         return False, []
 
-    # Probe 2: Groq (Fast & Free)
+    # Probe 2: xAI Grok (Grok-2, Grok-beta)
+    async def probe_xai(key: str) -> tuple[bool, list[str]]:
+        try:
+            async with httpx.AsyncClient(timeout=3.0) as client:
+                resp = await client.get(
+                    "https://api.x.ai/v1/models",
+                    headers={"Authorization": f"Bearer {key}"},
+                )
+                if resp.status_code == 200:
+                    data = resp.json()
+                    models = [
+                        m.get("id", "")
+                        for m in data.get("data", [])
+                        if not any(x in m.get("id", "").lower() for x in ["embedding"])
+                    ]
+                    return True, models[:8]
+        except Exception:
+            pass
+        if key.startswith("xai-") and len(key) >= 15:
+            return True, ["grok-2-latest", "grok-2", "grok-beta", "grok-2-vision-1212"]
+        return False, []
+
+    # Probe 3: Groq (Fast & Free)
     async def probe_groq(key: str) -> tuple[bool, list[str]]:
         try:
             async with httpx.AsyncClient(timeout=3.0) as client:
@@ -508,7 +603,7 @@ async def auto_detect_and_save_key(body: DetectKeyRequest) -> dict[str, Any]:
             return True, ["llama-3.3-70b-versatile", "deepseek-r1-distill-llama-70b", "llama-3.1-8b-instant"]
         return False, []
 
-    # Probe 3: OpenAI
+    # Probe 4: OpenAI
     async def probe_openai(key: str) -> tuple[bool, list[str]]:
         try:
             async with httpx.AsyncClient(timeout=2.5) as client:
@@ -530,7 +625,7 @@ async def auto_detect_and_save_key(body: DetectKeyRequest) -> dict[str, Any]:
             return True, ["gpt-4o", "gpt-4o-mini", "o1", "o1-mini"]
         return False, []
 
-    # Probe 4: Anthropic Claude
+    # Probe 5: Anthropic Claude
     async def probe_anthropic(key: str) -> tuple[bool, list[str]]:
         try:
             async with httpx.AsyncClient(timeout=2.5) as client:
@@ -549,18 +644,22 @@ async def auto_detect_and_save_key(body: DetectKeyRequest) -> dict[str, Any]:
         return False, []
 
     import asyncio
-    (gem_ok, gem_models), (groq_ok, groq_models), (oai_ok, oai_models), (ant_ok, ant_models) = await asyncio.gather(
-        probe_gemini(raw_key), probe_groq(raw_key), probe_openai(raw_key), probe_anthropic(raw_key)
+    (gem_ok, gem_models), (xai_ok, xai_models), (groq_ok, groq_models), (oai_ok, oai_models), (ant_ok, ant_models) = await asyncio.gather(
+        probe_gemini(raw_key), probe_xai(raw_key), probe_groq(raw_key), probe_openai(raw_key), probe_anthropic(raw_key)
     )
 
-    if raw_key.startswith("gsk_") and (groq_ok or len(raw_key) >= 20):
+    if raw_key.startswith("xai-") and (xai_ok or len(raw_key) >= 15):
+        detected_provider, detected_label, discovered_models = "xai", "xAI Grok", xai_models or ["grok-2-latest", "grok-2", "grok-beta"]
+    elif raw_key.startswith("gsk_") and (groq_ok or len(raw_key) >= 20):
         detected_provider, detected_label, discovered_models = "groq", "Groq (Fast & Free)", groq_models or ["llama-3.3-70b-versatile", "deepseek-r1-distill-llama-70b", "llama-3.1-8b-instant"]
     elif gem_ok and raw_key.startswith("AIzaSy"):
         detected_provider, detected_label, discovered_models = "gemini", "Google Gemini", gem_models
     elif ant_ok and raw_key.startswith("sk-ant-"):
         detected_provider, detected_label, discovered_models = "anthropic", "Anthropic Claude", ant_models
-    elif oai_ok and raw_key.startswith(("sk-proj-", "sk-admin-", "sk-")):
+    elif oai_ok and raw_key.startswith(("sk-proj-", "sk-admin-")):
         detected_provider, detected_label, discovered_models = "openai", "OpenAI", oai_models
+    elif xai_ok:
+        detected_provider, detected_label, discovered_models = "xai", "xAI Grok", xai_models
     elif groq_ok:
         detected_provider, detected_label, discovered_models = "groq", "Groq (Fast & Free)", groq_models
     elif gem_ok:
@@ -579,6 +678,7 @@ async def auto_detect_and_save_key(body: DetectKeyRequest) -> dict[str, Any]:
     # Save and activate the key
     key_map = {
         "gemini": "GEMINI_API_KEY",
+        "xai": "XAI_API_KEY",
         "groq": "GROQ_API_KEY",
         "openai": "OPENAI_API_KEY",
         "anthropic": "ANTHROPIC_API_KEY",
@@ -587,6 +687,10 @@ async def auto_detect_and_save_key(body: DetectKeyRequest) -> dict[str, Any]:
 
     if detected_provider == "gemini":
         settings.gemini_api_key = raw_key
+    elif detected_provider == "xai":
+        settings.xai_api_key = raw_key
+        if settings.groq_api_key.startswith("xai-"):
+            settings.groq_api_key = ""
     elif detected_provider == "groq":
         settings.groq_api_key = raw_key
     elif detected_provider == "openai":
@@ -625,7 +729,7 @@ async def test_provider(body: ProviderTest) -> dict:
     except Exception as e:
         logger.error("Provider test failed: %s", e)
         error_msg = str(e)
-        for key in [settings.openai_api_key, settings.gemini_api_key, settings.groq_api_key, settings.anthropic_api_key]:
+        for key in [settings.openai_api_key, settings.gemini_api_key, settings.groq_api_key, settings.xai_api_key, settings.anthropic_api_key]:
             if key and len(key) > 6:
                 error_msg = error_msg.replace(key, "[REDACTED]")
         return {"success": False, "error": error_msg}

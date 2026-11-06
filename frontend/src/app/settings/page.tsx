@@ -130,12 +130,12 @@ export default function SettingsPage() {
             </span>
           </div>
           <span className="text-xs text-[var(--text-muted)]">
-            Recognizes Groq, Gemini, OpenAI, Claude, etc.
+            Recognizes xAI Grok, Groq, Gemini, OpenAI, Claude, etc.
           </span>
         </div>
 
         <p className="text-xs text-[var(--text-muted)]">
-          Paste any API key below. AgentForge will automatically identify the provider (including free Groq keys), verify the key against the API, and activate it immediately.
+          Paste any API key below. AgentForge will automatically identify the provider (xAI Grok, Groq, Gemini, OpenAI, etc.), verify the key against the API, and activate it immediately.
         </p>
 
         <div className="flex gap-2">
@@ -149,7 +149,7 @@ export default function SettingsPage() {
                 handleAutoDetect();
               }
             }}
-            placeholder="Paste ANY API key here (e.g. gsk_..., AIzaSy..., sk-proj-..., sk-ant-...)..."
+            placeholder="Paste ANY API key here (e.g. xai-..., gsk_..., AIzaSy..., sk-...)..."
             className="flex-1 rounded-xl border border-[var(--border)] bg-black/50 px-3.5 py-2.5 text-xs text-white placeholder-gray-500 focus:border-brand-500 focus:outline-none transition-colors"
           />
           <button
@@ -227,6 +227,13 @@ export default function SettingsPage() {
                       <span className="text-[10px] text-gray-500">Quick Presets:</span>
                     </div>
                     <div className="flex flex-wrap gap-1.5 pb-1">
+                      <button
+                        type="button"
+                        onClick={() => setCustomUrls({ ...customUrls, [p.name]: "https://api.x.ai/v1" })}
+                        className="rounded bg-white/5 hover:bg-white/10 px-2 py-0.5 text-[10px] text-cyan-300 border border-white/10 transition-colors"
+                      >
+                        🤖 xAI Grok
+                      </button>
                       <button
                         type="button"
                         onClick={() => setCustomUrls({ ...customUrls, [p.name]: "https://api.groq.com/openai/v1" })}

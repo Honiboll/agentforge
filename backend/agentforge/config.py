@@ -77,6 +77,11 @@ class Settings(BaseSettings):
     groq_model: str = "llama-3.3-70b-versatile"
     groq_base_url: str = "https://api.groq.com/openai/v1"
 
+    # xAI Grok (Grok-2, Grok-beta)
+    xai_api_key: str = ""
+    xai_model: str = "grok-2-latest"
+    xai_base_url: str = "https://api.x.ai/v1"
+
     # Custom / OpenAI-Compatible (DeepSeek, OpenRouter, vLLM, LM Studio)
     custom_api_key: str = ""
     custom_base_url: str = "https://api.openai.com/v1"

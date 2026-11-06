@@ -18,6 +18,7 @@ interface Props {
 
 const PROVIDER_ICONS: Record<string, string> = {
   gemini: "💎",
+  xai: "🤖",
   groq: "⚡",
   openai: "🟢",
   anthropic: "🟠",
@@ -196,7 +197,7 @@ export function ProjectSetup({ onSubmit, loading }: Props) {
             </span>
           </div>
           <span className="text-[11px] text-[var(--text-muted)]">
-            Paste any key (Groq, Gemini, OpenAI, Claude)
+            Paste any key (xAI Grok, Groq, Gemini, OpenAI, Claude)
           </span>
         </div>
 
@@ -211,7 +212,7 @@ export function ProjectSetup({ onSubmit, loading }: Props) {
                 handleAutoDetectKey();
               }
             }}
-            placeholder="Paste ANY API key here (e.g. gsk_..., AIzaSy..., sk-proj-..., sk-ant-...)..."
+            placeholder="Paste ANY API key here (e.g. xai-..., gsk_..., AIzaSy..., sk-...)..."
             className="flex-1 rounded-lg border border-[var(--border)] bg-black/50 px-3 py-2 text-xs text-white placeholder-gray-500 focus:border-brand-500 focus:outline-none transition-colors"
           />
           <button
@@ -372,6 +373,17 @@ export function ProjectSetup({ onSubmit, loading }: Props) {
                 <span className="text-[10px] text-gray-500">1-Click Presets:</span>
               </div>
               <div className="flex flex-wrap gap-1.5 pb-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCustomBaseUrl("https://api.x.ai/v1");
+                    setCustomModel("grok-2-latest");
+                    setUseCustomModel(true);
+                  }}
+                  className="rounded bg-white/5 hover:bg-white/10 px-2 py-0.5 text-[10px] text-cyan-300 border border-white/10 transition-colors"
+                >
+                  🤖 xAI Grok
+                </button>
                 <button
                   type="button"
                   onClick={() => {

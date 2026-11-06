@@ -38,11 +38,13 @@ def sanitize_model_name(provider: str, model_name: str | None) -> str | None:
             m = m[len("models/"):]
         if m.startswith("google/"):
             m = m[len("google/"):]
-    elif p in ("openai", "groq", "custom", "openai-compatible"):
+    elif p in ("openai", "groq", "xai", "grok", "custom", "openai-compatible"):
         if m.startswith("openai/"):
             m = m[len("openai/"):]
         if m.startswith("groq/"):
             m = m[len("groq/"):]
+        if m.startswith("xai/"):
+            m = m[len("xai/"):]
     elif p == "anthropic":
         if m.startswith("anthropic/"):
             m = m[len("anthropic/"):]
@@ -85,10 +87,28 @@ async def create_project(
     if body.api_key and body.api_key.strip():
         key_val = body.api_key.strip()
         p_key = provider_name.lower()
+
+        # Auto-correct provider if key prefix clearly indicates a specific provider
+        if key_val.startswith("xai-") and p_key in ("groq", "openai", "custom"):
+            p_key = "xai"
+            provider_name = "xai"
+            if not body.model or "llama" in body.model or "gpt" in body.model:
+                model_name = "grok-2-latest"
+        elif key_val.startswith("gsk_") and p_key in ("xai", "openai", "custom"):
+            p_key = "groq"
+            provider_name = "groq"
+            if not body.model or "grok" in body.model or "gpt" in body.model:
+                model_name = "llama-3.3-70b-versatile"
+
         from agentforge.config import save_key_to_env
         if p_key == "gemini":
             settings.gemini_api_key = key_val
             save_key_to_env("GEMINI_API_KEY", key_val)
+        elif p_key == "xai":
+            settings.xai_api_key = key_val
+            save_key_to_env("XAI_API_KEY", key_val)
+            if settings.groq_api_key.startswith("xai-"):
+                settings.groq_api_key = ""
         elif p_key == "groq":
             settings.groq_api_key = key_val
             save_key_to_env("GROQ_API_KEY", key_val)

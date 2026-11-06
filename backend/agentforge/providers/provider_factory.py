@@ -18,12 +18,31 @@ def create_provider(provider_name: str, config: Settings, model: str | None = No
 
         case "groq":
             from agentforge.providers.openai_provider import OpenAIProvider
-            if not config.groq_api_key:
+            key = config.groq_api_key
+            if not key:
                 raise ValueError("Groq API key is missing. Please enter your free Groq API key in Settings or the Provider selector.")
+            if key.startswith("xai-"):
+                # Self-healing: User provided an xAI Grok key in Groq field
+                return OpenAIProvider(
+                    api_key=key,
+                    model=model if model and not "llama" in model else "grok-2-latest",
+                    base_url="https://api.x.ai/v1",
+                )
             return OpenAIProvider(
-                api_key=config.groq_api_key,
+                api_key=key,
                 model=model or config.groq_model,
                 base_url=config.groq_base_url or "https://api.groq.com/openai/v1",
+            )
+
+        case "xai" | "grok":
+            from agentforge.providers.openai_provider import OpenAIProvider
+            key = config.xai_api_key or (config.groq_api_key if config.groq_api_key.startswith("xai-") else "")
+            if not key:
+                raise ValueError("xAI Grok API key is missing. Please enter your xAI API key (starts with 'xai-') in Settings or the Provider selector.")
+            return OpenAIProvider(
+                api_key=key,
+                model=model or config.xai_model,
+                base_url=config.xai_base_url or "https://api.x.ai/v1",
             )
 
         case "custom" | "openai-compatible":
