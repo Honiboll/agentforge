@@ -50,13 +50,60 @@ AgentForge is an open-source platform that **analyzes your requirements** and au
 
 ---
 
+## 📋 Prerequisites & Installation Guide
+
+Before running AgentForge, make sure you have the following installed on your machine. Everything listed below is free and takes only a few minutes to set up:
+
+### 1. Git (Required to download the repository)
+- **Windows**: Download the installer from [git-scm.com](https://git-scm.com/download/win).
+- **macOS**: Open Terminal and run `xcode-select --install` (or `brew install git`).
+- **Linux (Ubuntu/Debian)**: Run `sudo apt update && sudo apt install git -y`.
+- **Verification**:
+  ```bash
+  git --version
+  ```
+
+### 2. Python (3.11 or newer)
+Powers the AgentForge backend orchestrator, database, and autonomous agents.
+- **Windows / macOS / Linux**: Download the installer from [python.org/downloads](https://www.python.org/downloads/) (select Python 3.11 or 3.12).
+  > ⚠️ **Important for Windows Users**: Make sure to check the box **"Add python.exe to PATH"** on the first installation screen!
+- **macOS (via Homebrew)**:
+  ```bash
+  brew install python@3.11
+  ```
+- **Verification**:
+  ```bash
+  python --version   # or python3 --version
+  ```
+
+### 3. Node.js (v18 or v20 LTS) & npm
+Powers the Next.js real-time live dashboard.
+- **Windows & macOS**: Download the **LTS (Long Term Support)** installer from [nodejs.org](https://nodejs.org/).
+- **Linux (Ubuntu/Debian)**:
+  ```bash
+  curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+  sudo apt-get install -y nodejs
+  ```
+- **Verification**:
+  ```bash
+  node -v
+  npm -v
+  ```
+
+### 4. Choose Your AI Brain / LLM (Pick at least ONE)
+
+AgentForge is flexible and works with both local and cloud models. You only need **one** of the following options:
+
+| Option | Cost & Privacy | Best For | How to Get & Setup |
+|---|---|---|---|
+| 🦙 **Ollama** | **100% Free** & Private | Offline local execution on your machine (No API key needed!) | 1. Download & install from [ollama.com](https://ollama.com/)<br>2. Open your terminal and pull a model: `ollama run llama3.2`<br>3. AgentForge connects to it automatically! |
+| 💎 **Google Gemini API** | **Free tier available** | Ultra-fast responses with generous free limits | 1. Go to [Google AI Studio](https://aistudio.google.com/)<br>2. Sign in and click **"Get API key"** → **"Create API key"**<br>3. Paste it in your `.env` as `GEMINI_API_KEY` |
+| 🟢 **OpenAI API** | Pay-as-you-go | GPT-4o intelligence | 1. Create an account at [platform.openai.com](https://platform.openai.com/api-keys)<br>2. Generate a secret key and paste it as `OPENAI_API_KEY` |
+| 🟠 **Anthropic Claude** | Pay-as-you-go | Claude Sonnet reasoning | 1. Create an account at [console.anthropic.com](https://console.anthropic.com/)<br>2. Generate a key and paste it as `ANTHROPIC_API_KEY` |
+
+---
+
 ## ⚡ Quick Start
-
-### Prerequisites
-
-- Python 3.11+
-- Node.js 18+
-- An LLM API key (OpenAI, Gemini, Anthropic) OR Ollama installed locally
 
 ### Option 1: Docker (Recommended)
 
