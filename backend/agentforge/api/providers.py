@@ -534,151 +534,80 @@ async def auto_detect_and_save_key(body: DetectKeyRequest) -> dict[str, Any]:
     detected_label: str | None = None
     discovered_models: list[str] = []
 
-    # Probe 1: Google Gemini
-    async def probe_gemini(key: str) -> tuple[bool, list[str]]:
-        try:
-            async with httpx.AsyncClient(timeout=2.5) as client:
-                resp = await client.get(
-                    "https://generativelanguage.googleapis.com/v1beta/models",
-                    headers={"x-goog-api-key": key},
-                )
-                if resp.status_code == 200:
-                    data = resp.json()
-                    models = [
-                        m.get("name", "").replace("models/", "")
-                        for m in data.get("models", [])
-                        if "generateContent" in m.get("supportedGenerationMethods", [])
-                        and "gemini" in m.get("name", "")
-                    ]
-                    return True, models[:6]
-                if resp.status_code in (400, 401, 403):
-                    try:
-                        err_text = resp.json().get("error", {}).get("message", "")
-                        if "User location is not supported" in err_text:
-                            return True, ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-pro"]
-                    except Exception:
-                        pass
-        except Exception:
-            pass
-        if key.startswith("AIzaSy") and len(key) >= 30:
-            return True, ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-pro"]
-        return False, []
-
-    # Probe 2: xAI Grok (Grok-2, Grok-beta)
-    async def probe_xai(key: str) -> tuple[bool, list[str]]:
-        try:
-            async with httpx.AsyncClient(timeout=3.0) as client:
-                resp = await client.get(
-                    "https://api.x.ai/v1/models",
-                    headers={"Authorization": f"Bearer {key}"},
-                )
-                if resp.status_code == 200:
-                    data = resp.json()
-                    models = [
-                        m.get("id", "")
-                        for m in data.get("data", [])
-                        if not any(x in m.get("id", "").lower() for x in ["embedding"])
-                    ]
-                    return True, models[:8]
-        except Exception:
-            pass
-        if key.startswith("xai-") and len(key) >= 15:
-            return True, ["grok-2-latest", "grok-2", "grok-beta", "grok-2-vision-1212"]
-        return False, []
-
-    # Probe 3: Groq (Fast & Free)
-    async def probe_groq(key: str) -> tuple[bool, list[str]]:
-        try:
-            async with httpx.AsyncClient(timeout=3.0) as client:
-                resp = await client.get(
-                    "https://api.groq.com/openai/v1/models",
-                    headers={"Authorization": f"Bearer {key}"},
-                )
-                if resp.status_code == 200:
-                    data = resp.json()
-                    models = [
-                        m.get("id", "")
-                        for m in data.get("data", [])
-                        if not any(x in m.get("id", "").lower() for x in ["whisper", "guard", "vision-preview", "tts", "embedding"])
-                    ]
-                    return True, models[:8]
-        except Exception:
-            pass
-        if key.startswith("gsk_") and len(key) >= 25:
-            return True, ["llama-3.3-70b-versatile", "deepseek-r1-distill-llama-70b", "llama-3.1-8b-instant"]
-        return False, []
-
-    # Probe 4: OpenAI
-    async def probe_openai(key: str) -> tuple[bool, list[str]]:
-        try:
-            async with httpx.AsyncClient(timeout=2.5) as client:
-                resp = await client.get(
-                    "https://api.openai.com/v1/models",
-                    headers={"Authorization": f"Bearer {key}"},
-                )
-                if resp.status_code == 200:
-                    data = resp.json()
-                    models = [
-                        m.get("id", "")
-                        for m in data.get("data", [])
-                        if m.get("id", "").startswith(("gpt-4", "o1", "o3"))
-                    ]
-                    return True, models[:6]
-        except Exception:
-            pass
-        if key.startswith(("sk-proj-", "sk-admin-")) and len(key) >= 35:
-            return True, ["gpt-4o", "gpt-4o-mini", "o1", "o1-mini"]
-        return False, []
-
-    # Probe 5: Anthropic Claude
-    async def probe_anthropic(key: str) -> tuple[bool, list[str]]:
-        try:
-            async with httpx.AsyncClient(timeout=2.5) as client:
-                resp = await client.get(
-                    "https://api.anthropic.com/v1/models",
-                    headers={"x-api-key": key, "anthropic-version": "2023-06-01"},
-                )
-                if resp.status_code == 200:
-                    data = resp.json()
-                    models = [m.get("id", "") for m in data.get("data", []) if m.get("id")]
-                    return True, models[:6]
-        except Exception:
-            pass
-        if key.startswith("sk-ant-") and len(key) >= 30:
-            return True, ["claude-3-5-sonnet-20241022", "claude-3-5-haiku-20241022", "claude-sonnet-4-20250514"]
-        return False, []
-
-    import asyncio
-    (gem_ok, gem_models), (xai_ok, xai_models), (groq_ok, groq_models), (oai_ok, oai_models), (ant_ok, ant_models) = await asyncio.gather(
-        probe_gemini(raw_key), probe_xai(raw_key), probe_groq(raw_key), probe_openai(raw_key), probe_anthropic(raw_key)
-    )
-
-    if raw_key.startswith("xai-") and (xai_ok or len(raw_key) >= 15):
-        detected_provider, detected_label, discovered_models = "xai", "xAI Grok", xai_models or ["grok-2-latest", "grok-2", "grok-beta"]
-    elif raw_key.startswith("gsk_") and (groq_ok or len(raw_key) >= 20):
-        detected_provider, detected_label, discovered_models = "groq", "Groq (Fast & Free)", groq_models or ["llama-3.3-70b-versatile", "deepseek-r1-distill-llama-70b", "llama-3.1-8b-instant"]
-    elif gem_ok and raw_key.startswith("AIzaSy"):
-        detected_provider, detected_label, discovered_models = "gemini", "Google Gemini", gem_models
-    elif ant_ok and raw_key.startswith("sk-ant-"):
-        detected_provider, detected_label, discovered_models = "anthropic", "Anthropic Claude", ant_models
-    elif oai_ok and raw_key.startswith(("sk-proj-", "sk-admin-")):
-        detected_provider, detected_label, discovered_models = "openai", "OpenAI", oai_models
-    elif xai_ok:
-        detected_provider, detected_label, discovered_models = "xai", "xAI Grok", xai_models
-    elif groq_ok:
-        detected_provider, detected_label, discovered_models = "groq", "Groq (Fast & Free)", groq_models
-    elif gem_ok:
-        detected_provider, detected_label, discovered_models = "gemini", "Google Gemini", gem_models
-    elif oai_ok:
-        detected_provider, detected_label, discovered_models = "openai", "OpenAI", oai_models
-    elif ant_ok:
-        detected_provider, detected_label, discovered_models = "anthropic", "Anthropic Claude", ant_models
-
-    if not detected_provider:
-        # Accept ANY key unconditionally as a Universal / Custom API Key!
+    # 1. Fast immediate match by key prefix (Instant zero-wait, no hanging network calls!)
+    if raw_key.startswith("xai-"):
+        detected_provider, detected_label, discovered_models = "xai", "xAI Grok", ["grok-2-latest", "grok-2", "grok-beta", "grok-2-vision-1212"]
+    elif raw_key.startswith("gsk_"):
+        detected_provider, detected_label, discovered_models = "groq", "Groq (Fast & Free)", ["llama-3.3-70b-versatile", "deepseek-r1-distill-llama-70b", "llama-3.1-8b-instant"]
+    elif raw_key.startswith("AIzaSy"):
+        detected_provider, detected_label, discovered_models = "gemini", "Google Gemini", ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-pro"]
+    elif raw_key.startswith("sk-ant-"):
+        detected_provider, detected_label, discovered_models = "anthropic", "Anthropic Claude", ["claude-3-5-sonnet-20241022", "claude-3-5-haiku-20241022"]
+    elif raw_key.startswith(("sk-proj-", "sk-admin-")):
+        detected_provider, detected_label, discovered_models = "openai", "OpenAI", ["gpt-4o", "gpt-4o-mini", "o1-mini"]
+    elif not raw_key.startswith("sk-"):
+        # For ANY other custom, reseller, or proxy key (like coa_..., local token, etc.):
+        # Instant zero-latency acceptance without network probe delays!
         detected_provider = "custom"
         detected_label = "Universal / Custom Key"
         discovered_models = ["gpt-4o", "gpt-4o-mini", "llama-3.3-70b-versatile", "deepseek-chat"]
+
+    # 2. Only probe external APIs if it's a generic unconfirmed key (like legacy sk-...)
+    if not detected_provider:
+        # Probe 1: Google Gemini
+        async def probe_gemini(key: str) -> tuple[bool, list[str]]:
+            try:
+                async with httpx.AsyncClient(timeout=1.5) as client:
+                    resp = await client.get(
+                        "https://generativelanguage.googleapis.com/v1beta/models",
+                        headers={"x-goog-api-key": key},
+                    )
+                    if resp.status_code == 200:
+                        data = resp.json()
+                        models = [
+                            m.get("name", "").replace("models/", "")
+                            for m in data.get("models", [])
+                            if "generateContent" in m.get("supportedGenerationMethods", [])
+                            and "gemini" in m.get("name", "")
+                        ]
+                        return True, models[:6]
+            except Exception:
+                pass
+            return False, []
+
+        # Probe 2: OpenAI
+        async def probe_openai(key: str) -> tuple[bool, list[str]]:
+            try:
+                async with httpx.AsyncClient(timeout=1.5) as client:
+                    resp = await client.get(
+                        "https://api.openai.com/v1/models",
+                        headers={"Authorization": f"Bearer {key}"},
+                    )
+                    if resp.status_code == 200:
+                        data = resp.json()
+                        models = [
+                            m.get("id", "")
+                            for m in data.get("data", [])
+                            if m.get("id", "").startswith(("gpt-4", "o1", "o3"))
+                        ]
+                        return True, models[:6]
+            except Exception:
+                pass
+            return False, []
+
+        import asyncio
+        (gem_ok, gem_models), (oai_ok, oai_models) = await asyncio.gather(
+            probe_gemini(raw_key), probe_openai(raw_key)
+        )
+
+        if gem_ok:
+            detected_provider, detected_label, discovered_models = "gemini", "Google Gemini", gem_models
+        elif oai_ok:
+            detected_provider, detected_label, discovered_models = "openai", "OpenAI", oai_models
+        else:
+            detected_provider = "custom"
+            detected_label = "Universal / Custom Key"
+            discovered_models = ["gpt-4o", "gpt-4o-mini", "llama-3.3-70b-versatile", "deepseek-chat"]
 
     # Save and activate the key
     key_map = {

@@ -2,18 +2,50 @@
 
 import type { Project, Provider } from "./types";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const getApiEndpoints = (path: string): string[] => {
+  const custom = process.env.NEXT_PUBLIC_API_URL;
+  if (custom) {
+    return [`${custom.replace(/\/$/, "")}${path}`];
+  }
+
+  // 1. Same-origin relative path (handled by Next.js rewrites)
+  const endpoints: string[] = [path];
+
+  // 2. Direct fallbacks for maximum resilience
+  if (typeof window !== "undefined") {
+    const host = window.location.hostname || "127.0.0.1";
+    endpoints.push(`http://${host}:8000${path}`);
+    if (host !== "127.0.0.1") endpoints.push(`http://127.0.0.1:8000${path}`);
+    if (host !== "localhost") endpoints.push(`http://localhost:8000${path}`);
+  } else {
+    endpoints.push(`http://127.0.0.1:8000${path}`);
+  }
+
+  return endpoints;
+};
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
-  const res = await fetch(`${API_URL}${path}`, {
-    headers: { "Content-Type": "application/json", ...options?.headers },
-    ...options,
-  });
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`API ${res.status}: ${text}`);
+  const endpoints = getApiEndpoints(path);
+  let lastError: Error | null = null;
+
+  for (const url of endpoints) {
+    try {
+      const res = await fetch(url, {
+        headers: { "Content-Type": "application/json", ...options?.headers },
+        ...options,
+      });
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(`API ${res.status}: ${text}`);
+      }
+      return (await res.json()) as T;
+    } catch (err: unknown) {
+      lastError = err instanceof Error ? err : new Error(String(err));
+      // Continue to next endpoint fallback
+    }
   }
-  return res.json() as Promise<T>;
+
+  throw lastError || new Error("Failed to connect to AgentForge backend");
 }
 
 // --- Projects ---
