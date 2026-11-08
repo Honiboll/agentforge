@@ -12,9 +12,10 @@ def create_provider(provider_name: str, config: Settings, model: str | None = No
     match provider_name.lower():
         case "openai":
             from agentforge.providers.openai_provider import OpenAIProvider
-            if not config.openai_api_key:
+            key = config.openai_api_key or config.custom_api_key
+            if not key:
                 raise ValueError("OpenAI API key is missing. Please enter your API key in Settings or the Provider selector.")
-            return OpenAIProvider(api_key=config.openai_api_key, model=model or config.openai_model, base_url=config.openai_base_url)
+            return OpenAIProvider(api_key=key, model=model or config.openai_model, base_url=config.openai_base_url)
 
         case "groq":
             from agentforge.providers.openai_provider import OpenAIProvider
@@ -45,13 +46,20 @@ def create_provider(provider_name: str, config: Settings, model: str | None = No
                 base_url=config.xai_base_url or "https://api.x.ai/v1",
             )
 
-        case "custom" | "openai-compatible":
+        case "custom" | "openai-compatible" | "universal":
             from agentforge.providers.openai_provider import OpenAIProvider
-            key = config.custom_api_key or config.openai_api_key
+            key = config.custom_api_key or config.openai_api_key or config.groq_api_key or config.xai_api_key
             if not key:
-                raise ValueError("Custom provider API key is missing. Please enter your API key in Settings or the Provider selector.")
+                raise ValueError("Universal / Custom provider API key is missing. Please enter your API key in Settings or the Provider selector.")
             base_url = config.custom_base_url or config.openai_base_url or "https://api.openai.com/v1"
             return OpenAIProvider(api_key=key, model=model or config.custom_model, base_url=base_url)
+
+        case _:
+            from agentforge.providers.openai_provider import OpenAIProvider
+            key = config.custom_api_key or config.openai_api_key or config.groq_api_key
+            if not key:
+                raise ValueError(f"Provider '{provider_name}' requires an API key. Please configure your key in Settings.")
+            return OpenAIProvider(api_key=key, model=model or "gpt-4o", base_url=config.custom_base_url or "https://api.openai.com/v1")
 
         case "gemini":
             from agentforge.providers.gemini_provider import GeminiProvider

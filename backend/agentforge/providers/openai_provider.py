@@ -65,6 +65,8 @@ class OpenAIProvider(BaseLLMProvider):
 
                     if "model_not_found" in err_msg.lower() or "does not exist" in err_msg.lower() or resp.status_code == 404:
                         err_msg += f" — The model '{self.model}' was not found at {self.base_url}. Please check the exact model name or API provider."
+                    elif resp.status_code == 401:
+                        err_msg += f" — Authentication failed at {self.base_url}. If this key is from a third-party, reseller, or proxy service, please enter the service's API Base URL in the Custom Provider settings."
 
                     raise RuntimeError(f"OpenAI API Error ({resp.status_code}): {err_msg}")
 

@@ -130,12 +130,12 @@ export default function SettingsPage() {
             </span>
           </div>
           <span className="text-xs text-[var(--text-muted)]">
-            Recognizes xAI Grok, Groq, Gemini, OpenAI, Claude, etc.
+            Universal Auto-Detector (Accepts ANY API key from ANY provider)
           </span>
         </div>
 
         <p className="text-xs text-[var(--text-muted)]">
-          Paste any API key below. AgentForge will automatically identify the provider (xAI Grok, Groq, Gemini, OpenAI, etc.), verify the key against the API, and activate it immediately.
+          Paste ANY API key below. AgentForge accepts any key unconditionally (Gemini, Groq, xAI, OpenAI, Claude, or any custom/proxy key) and activates it immediately.
         </p>
 
         <div className="flex gap-2">
@@ -149,7 +149,7 @@ export default function SettingsPage() {
                 handleAutoDetect();
               }
             }}
-            placeholder="Paste ANY API key here (e.g. xai-..., gsk_..., AIzaSy..., sk-...)..."
+            placeholder="Paste ANY API key here (e.g. coa_..., xai-..., gsk_..., AIzaSy..., sk-...)..."
             className="flex-1 rounded-xl border border-[var(--border)] bg-black/50 px-3.5 py-2.5 text-xs text-white placeholder-gray-500 focus:border-brand-500 focus:outline-none transition-colors"
           />
           <button

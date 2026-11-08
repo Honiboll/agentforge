@@ -118,8 +118,10 @@ async def create_project(
         elif p_key == "anthropic":
             settings.anthropic_api_key = key_val
             save_key_to_env("ANTHROPIC_API_KEY", key_val)
-        elif p_key in ("custom", "openai-compatible"):
+        else:
             settings.custom_api_key = key_val
+            if not settings.openai_api_key:
+                settings.openai_api_key = key_val
             save_key_to_env("CUSTOM_API_KEY", key_val)
             if body.base_url and body.base_url.strip():
                 settings.custom_base_url = body.base_url.strip()

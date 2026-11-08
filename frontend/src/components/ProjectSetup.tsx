@@ -23,7 +23,7 @@ const PROVIDER_ICONS: Record<string, string> = {
   openai: "🟢",
   anthropic: "🟠",
   ollama: "🦙",
-  custom: "🛠️",
+  custom: "🌐",
 };
 
 export function ProjectSetup({ onSubmit, loading }: Props) {
@@ -190,14 +190,14 @@ export function ProjectSetup({ onSubmit, loading }: Props) {
           <div className="flex items-center gap-2">
             <span className="text-base">⚡</span>
             <span className="text-xs font-bold text-white uppercase tracking-wider">
-              Smart Key Auto-Detector
+              Universal Key Auto-Detector
             </span>
             <span className="rounded-full bg-brand-500/20 px-2 py-0.5 text-[10px] font-semibold text-brand-300 border border-brand-500/30">
-              Auto-Recognize
+              Universal Any Key
             </span>
           </div>
           <span className="text-[11px] text-[var(--text-muted)]">
-            Paste any key (xAI Grok, Groq, Gemini, OpenAI, Claude)
+            Accepts ANY key (Gemini, Groq, xAI, OpenAI, Claude, or ANY Custom/Proxy Key)
           </span>
         </div>
 
@@ -212,7 +212,7 @@ export function ProjectSetup({ onSubmit, loading }: Props) {
                 handleAutoDetectKey();
               }
             }}
-            placeholder="Paste ANY API key here (e.g. xai-..., gsk_..., AIzaSy..., sk-...)..."
+            placeholder="Paste ANY API key here (e.g. coa_..., gsk_..., xai-..., AIzaSy..., sk-...)..."
             className="flex-1 rounded-lg border border-[var(--border)] bg-black/50 px-3 py-2 text-xs text-white placeholder-gray-500 focus:border-brand-500 focus:outline-none transition-colors"
           />
           <button
@@ -436,6 +436,9 @@ export function ProjectSetup({ onSubmit, loading }: Props) {
                 placeholder="https://api.openai.com/v1"
                 className="w-full rounded-lg border border-[var(--border)] bg-black/40 px-3 py-1.5 text-xs text-white placeholder-gray-600 focus:border-brand-500 focus:outline-none"
               />
+              <p className="text-[10px] text-[var(--text-muted)]">
+                Default: <code>https://api.openai.com/v1</code>. If your key comes from a proxy, reseller, or custom server, change the Base URL here.
+              </p>
             </div>
           )}
 

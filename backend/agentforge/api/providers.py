@@ -71,8 +71,10 @@ DEFAULT_MODELS: dict[str, list[dict[str, str]]] = {
         {"id": "qwen2.5", "name": "Qwen 2.5", "description": "Multilingual and coding specialist"},
     ],
     "custom": [
+        {"id": "gpt-4o", "name": "GPT-4o (Universal)", "description": "Default flagship model for OpenAI-compatible APIs"},
+        {"id": "gpt-4o-mini", "name": "GPT-4o Mini", "description": "Fast and lightweight general model"},
+        {"id": "llama-3.3-70b-versatile", "name": "Llama 3.3 70B", "description": "High-performance open weights reasoning"},
         {"id": "deepseek-chat", "name": "DeepSeek Chat", "description": "DeepSeek V3 / R1 reasoning (OpenAI-compatible)"},
-        {"id": "llama-3.3-70b-versatile", "name": "Llama 3.3 70B", "description": "Groq / OpenRouter high-performance Llama 3.3"},
         {"id": "mistral-large-latest", "name": "Mistral Large", "description": "Mistral AI flagship reasoning"},
     ],
 }
@@ -420,7 +422,7 @@ async def list_providers(refresh: bool = False) -> list[dict[str, Any]]:
         },
         {
             "name": "custom",
-            "label": "Custom (OpenAI-API)",
+            "label": "Universal / Custom",
             "is_available": bool(settings.custom_api_key or settings.openai_api_key),
             "requires_key": True,
             "has_key": bool(settings.custom_api_key or settings.openai_api_key),
@@ -458,12 +460,13 @@ async def save_api_key(body: SaveKeyRequest) -> dict[str, Any]:
         "openai": "OPENAI_API_KEY",
         "anthropic": "ANTHROPIC_API_KEY",
         "custom": "CUSTOM_API_KEY",
+        "universal": "CUSTOM_API_KEY",
     }
 
     if provider_name not in key_map:
-        return {"success": False, "error": f"Unknown provider: {provider_name}"}
+        provider_name = "custom"
 
-    env_var_name = key_map[provider_name]
+    env_var_name = key_map.get(provider_name, "CUSTOM_API_KEY")
 
     # 1. Update in-memory settings immediately
     if provider_name == "gemini":
@@ -478,8 +481,10 @@ async def save_api_key(body: SaveKeyRequest) -> dict[str, Any]:
         settings.openai_api_key = key_val
     elif provider_name == "anthropic":
         settings.anthropic_api_key = key_val
-    elif provider_name == "custom":
+    elif provider_name in ("custom", "universal"):
         settings.custom_api_key = key_val
+        if not settings.openai_api_key:
+            settings.openai_api_key = key_val
         if body.base_url and body.base_url.strip():
             settings.custom_base_url = body.base_url.strip()
             from agentforge.config import save_key_to_env
@@ -670,10 +675,10 @@ async def auto_detect_and_save_key(body: DetectKeyRequest) -> dict[str, Any]:
         detected_provider, detected_label, discovered_models = "anthropic", "Anthropic Claude", ant_models
 
     if not detected_provider:
-        return {
-            "success": False,
-            "error": "Could not automatically identify this API key. Please select your provider manually from the dropdown.",
-        }
+        # Accept ANY key unconditionally as a Universal / Custom API Key!
+        detected_provider = "custom"
+        detected_label = "Universal / Custom Key"
+        discovered_models = ["gpt-4o", "gpt-4o-mini", "llama-3.3-70b-versatile", "deepseek-chat"]
 
     # Save and activate the key
     key_map = {
@@ -682,8 +687,9 @@ async def auto_detect_and_save_key(body: DetectKeyRequest) -> dict[str, Any]:
         "groq": "GROQ_API_KEY",
         "openai": "OPENAI_API_KEY",
         "anthropic": "ANTHROPIC_API_KEY",
+        "custom": "CUSTOM_API_KEY",
     }
-    env_var_name = key_map[detected_provider]
+    env_var_name = key_map.get(detected_provider, "CUSTOM_API_KEY")
 
     if detected_provider == "gemini":
         settings.gemini_api_key = raw_key
@@ -697,6 +703,10 @@ async def auto_detect_and_save_key(body: DetectKeyRequest) -> dict[str, Any]:
         settings.openai_api_key = raw_key
     elif detected_provider == "anthropic":
         settings.anthropic_api_key = raw_key
+    elif detected_provider == "custom":
+        settings.custom_api_key = raw_key
+        if not settings.openai_api_key:
+            settings.openai_api_key = raw_key
 
     _model_cache.pop(detected_provider, None)
 
@@ -709,7 +719,7 @@ async def auto_detect_and_save_key(body: DetectKeyRequest) -> dict[str, Any]:
         "success": True,
         "provider": detected_provider,
         "provider_label": detected_label,
-        "message": f"Successfully detected as {detected_label}! Key saved and activated{model_summary}.",
+        "message": f"Successfully activated as {detected_label}! Key saved and ready{model_summary}.",
         "unlocked_models": discovered_models,
     }
 
